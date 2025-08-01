@@ -1,5 +1,5 @@
 {
-  "id": "37f8e77b-7894-4e62-a921-a1f945226989",
+  "id": "100ea9e8-c057-4d40-9c50-5655fbc89455",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -1417,13 +1417,6 @@
         },
         "airdropped_tokens": {
           "name": "airdropped_tokens",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "mintable_tokens": {
-          "name": "mintable_tokens",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,

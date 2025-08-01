@@ -134,7 +134,6 @@ CREATE TABLE "collection" (
 	"max_num_token" integer,
 	"per_address_limit" integer,
 	"airdropped_tokens" integer DEFAULT 0 NOT NULL,
-	"mintable_tokens" integer DEFAULT 0 NOT NULL,
 	"minted_tokens" integer DEFAULT 0 NOT NULL,
 	"whitelist" uuid,
 	"start_time" timestamp with time zone,
