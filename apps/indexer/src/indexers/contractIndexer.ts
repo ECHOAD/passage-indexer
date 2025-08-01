@@ -260,18 +260,11 @@ export class ContractIndexer extends Indexer {
 
     const startTime = new Date(parseInt(collectionMinterTx.start_time) / 1_000_000);
 
-    const [{total: dbCollectionNftCount}] = await dbTransaction.select({
-      total: count()
-    }).from(nft).where(eq(nft.collection, collectionMinterTx.cw721_address));
-
-    const mintableTokens = collectionMinterTx.max_num_tokens - (dbCollectionNftCount || 0);
-
     await dbTransaction
       .update(collection)
       .set({
         mintContract: minterAddress,
         maxNumToken: collectionMinterTx.max_num_tokens,
-        mintableTokens: mintableTokens,
         perAddressLimit: collectionMinterTx.per_address_limit,
         startTime: startTime,
         unitPrice: collectionMinterTx.unit_price.amount,
