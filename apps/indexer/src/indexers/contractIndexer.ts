@@ -365,6 +365,7 @@ export class ContractIndexer extends Indexer {
         .values({
           tokenId: parseTokenId(token_migration.token_id),
           owner: token_migration.owner,
+          migratedOnBlockHeight: height,
           metadata: token_migration.extension,
           collection: dbCollection.address,
           createdOnBlockHeight: height
@@ -397,6 +398,7 @@ export class ContractIndexer extends Indexer {
           metadata: token_migration.metadata,
           collection: dbCollection.address,
           createdOnBlockHeight: height,
+          migratedOnBlockHeight: height,
           mintedOnBlockHeight: token_migration.is_minted ? height : null
         })
         .onConflictDoUpdate({
@@ -471,13 +473,6 @@ export class ContractIndexer extends Indexer {
     }
 
     await dbTransaction
-      .update(collection)
-      .set({
-        mintedTokens: dbCollection.mintedTokens + 1
-      })
-      .where(eq(collection.address, dbCollection.address));
-
-    await dbTransaction
       .update(nft)
       .set({
         mintedOnBlockHeight: height,
@@ -519,21 +514,11 @@ export class ContractIndexer extends Indexer {
       throw new Error(`Owner not found for token ${normalizedTokenId}`);
     }
 
-    const newAirDroppedTokens = dbCollection.airDroppedTokens + 1;
-    const newMintedTokens = dbCollection.mintedTokens + 1;
-
-    await dbTransaction
-      .update(collection)
-      .set({
-        airDroppedTokens:  newAirDroppedTokens,
-        mintedTokens: newMintedTokens
-      })
-      .where(eq(collection.address, dbCollection.address));
-
     await dbTransaction
       .update(nft)
       .set({
         mintedOnBlockHeight: height,
+        airDroppedOnBlockHeight: height,
         mintPrice: mintPrice,
         mintDenom: dbCollection.unitDenom || "upasg",
         owner: recipient
@@ -580,7 +565,7 @@ export class ContractIndexer extends Indexer {
     }
 
     if (txEvents.some((event) => event.type === "wasm-finalize-sale")) {
-      this.executeNftSale(dbTransaction, txEvents, normalizedTokenId, height);
+      await this.executeNftSale(dbTransaction, txEvents, normalizedTokenId, height);
     } else {
       if (!dbNft.owner) {
         throw new Error(`Owner not found for token ${normalizedTokenId} collection ${dbCollection.address}`);

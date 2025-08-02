@@ -45,6 +45,20 @@ export const nft = pgTable(
         onUpdate: "cascade",
       }
     ),
+    airDroppedOnBlockHeight: integer("airdropped_on_block_height").references(
+      () => block.height,
+      {
+        onDelete: "cascade",
+        onUpdate: "cascade",
+      }
+    ),
+    migratedOnBlockHeight: integer("migrated_on_block_height").references(
+      () => block.height,
+      {
+        onDelete: "cascade",
+        onUpdate: "cascade",
+      }
+    ),
     mintPrice: numeric("mint_price"),
     mintDenom: varchar("mint_denom", { length: 255 }),
     collection: varchar("collection", { length: 255 }).references(

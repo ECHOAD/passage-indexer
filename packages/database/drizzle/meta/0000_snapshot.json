@@ -1,5 +1,5 @@
 {
-  "id": "100ea9e8-c057-4d40-9c50-5655fbc89455",
+  "id": "af28ebbc-27b9-4b72-b96e-eceb0007ae98",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -1415,20 +1415,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "airdropped_tokens": {
-          "name": "airdropped_tokens",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "minted_tokens": {
-          "name": "minted_tokens",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
         "whitelist": {
           "name": "whitelist",
           "type": "uuid",
@@ -1593,6 +1579,18 @@
           "primaryKey": false,
           "notNull": false
         },
+        "airdropped_on_block_height": {
+          "name": "airdropped_on_block_height",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "migrated_on_block_height": {
+          "name": "migrated_on_block_height",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "mint_price": {
           "name": "mint_price",
           "type": "numeric",
@@ -1691,6 +1689,32 @@
           "tableTo": "block",
           "columnsFrom": [
             "minted_on_block_height"
+          ],
+          "columnsTo": [
+            "height"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        },
+        "nft_airdropped_on_block_height_block_height_fk": {
+          "name": "nft_airdropped_on_block_height_block_height_fk",
+          "tableFrom": "nft",
+          "tableTo": "block",
+          "columnsFrom": [
+            "airdropped_on_block_height"
+          ],
+          "columnsTo": [
+            "height"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        },
+        "nft_migrated_on_block_height_block_height_fk": {
+          "name": "nft_migrated_on_block_height_block_height_fk",
+          "tableFrom": "nft",
+          "tableTo": "block",
+          "columnsFrom": [
+            "migrated_on_block_height"
           ],
           "columnsTo": [
             "height"

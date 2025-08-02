@@ -133,8 +133,6 @@ CREATE TABLE "collection" (
 	"royalty_fee" numeric,
 	"max_num_token" integer,
 	"per_address_limit" integer,
-	"airdropped_tokens" integer DEFAULT 0 NOT NULL,
-	"minted_tokens" integer DEFAULT 0 NOT NULL,
 	"whitelist" uuid,
 	"start_time" timestamp with time zone,
 	"unit_price" numeric,
@@ -158,6 +156,8 @@ CREATE TABLE "nft" (
 	"metadata" json NOT NULL,
 	"created_on_block_height" integer,
 	"minted_on_block_height" integer,
+	"airdropped_on_block_height" integer,
+	"migrated_on_block_height" integer,
 	"mint_price" numeric,
 	"mint_denom" varchar(255),
 	"collection" varchar(255),
@@ -267,6 +267,8 @@ ALTER TABLE "transaction_event_attribute" ADD CONSTRAINT "transaction_event_attr
 ALTER TABLE "collection" ADD CONSTRAINT "collection_whitelist_whitelist_id_fk" FOREIGN KEY ("whitelist") REFERENCES "public"."whitelist"("id") ON DELETE cascade ON UPDATE cascade;--> statement-breakpoint
 ALTER TABLE "nft" ADD CONSTRAINT "nft_created_on_block_height_block_height_fk" FOREIGN KEY ("created_on_block_height") REFERENCES "public"."block"("height") ON DELETE cascade ON UPDATE cascade;--> statement-breakpoint
 ALTER TABLE "nft" ADD CONSTRAINT "nft_minted_on_block_height_block_height_fk" FOREIGN KEY ("minted_on_block_height") REFERENCES "public"."block"("height") ON DELETE cascade ON UPDATE cascade;--> statement-breakpoint
+ALTER TABLE "nft" ADD CONSTRAINT "nft_airdropped_on_block_height_block_height_fk" FOREIGN KEY ("airdropped_on_block_height") REFERENCES "public"."block"("height") ON DELETE cascade ON UPDATE cascade;--> statement-breakpoint
+ALTER TABLE "nft" ADD CONSTRAINT "nft_migrated_on_block_height_block_height_fk" FOREIGN KEY ("migrated_on_block_height") REFERENCES "public"."block"("height") ON DELETE cascade ON UPDATE cascade;--> statement-breakpoint
 ALTER TABLE "nft" ADD CONSTRAINT "nft_collection_collection_address_fk" FOREIGN KEY ("collection") REFERENCES "public"."collection"("address") ON DELETE cascade ON UPDATE cascade;--> statement-breakpoint
 ALTER TABLE "nft_sale" ADD CONSTRAINT "nft_sale_nft_nft_id_fk" FOREIGN KEY ("nft") REFERENCES "public"."nft"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "nft_sale" ADD CONSTRAINT "nft_sale_sale_block_height_block_height_fk" FOREIGN KEY ("sale_block_height") REFERENCES "public"."block"("height") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
