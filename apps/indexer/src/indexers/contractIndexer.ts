@@ -24,7 +24,6 @@ import {
   whitelist,
   whitelistMember,
   isNull,
-  count
 } from "database";
 import { MsgExecuteContract, MsgInstantiateContract } from "cosmjs-types/cosmwasm/wasm/v1/tx";
 import {
@@ -643,26 +642,34 @@ export class ContractIndexer extends Indexer {
       throw new Error(`Nft not found for ${tokenId} in ${marketContractAddress}`);
     }
 
-    if (txEvents.some((event) => event.type === "wasm-finalize-sale")) {
-      this.executeNftSale(dbTransaction, txEvents, tokenId, height);
+    const wasRefunded = txEvents.some((e) =>
+        e.type === "wasm-refund-bidder" &&
+        getEventAttributeValue([e], "wasm-refund-bidder", "recipient") === owner
+    );
 
-      await dbTransaction.insert(nftBid).values({
-        owner: owner,
-        nft: dbNft.id,
-        bidPrice: amount,
-        bidDenom: denom,
-        bidBlockHeight: height,
-        removedBlockHeight: height
-      });
-    } else {
-      await dbTransaction.insert(nftBid).values({
-        owner: owner,
-        nft: dbNft.id,
-        bidPrice: amount,
-        bidDenom: denom,
-        bidBlockHeight: height
-      });
+    const matchOutcome = getEventAttributeValue(txEvents, "wasm-match-bid", "outcome");
+    const wasTooLow = matchOutcome === "bid-too-low";
+
+    const wasFinalized = txEvents.some((event) => event.type === "wasm-finalize-sale");
+
+    if (wasRefunded) {
+      return;
     }
+
+    const removedBlockHeight = wasFinalized || wasTooLow ? height : null;
+
+    if (wasFinalized) {
+      await this.executeNftSale(dbTransaction, txEvents, tokenId, height);
+    }
+
+    await dbTransaction.insert(nftBid).values({
+      owner: owner,
+      nft: dbNft.id,
+      bidPrice: amount,
+      bidDenom: denom,
+      bidBlockHeight: height,
+      removedBlockHeight
+    });
   }
 
   private async removeNftBid(dbTransaction: DbTransaction, txEvents: TransactionEventWithAttributes[], _tokenId: string, owner: string, height: number) {

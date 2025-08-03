@@ -15,13 +15,15 @@ type TxEventType =
   | "wasm-remove-ask"
   | "wasm-set-bid"
   | "wasm-remove-bid"
+  | "wasm-match-bid"
   | "wasm-set-collection-bid"
   | "wasm-remove-collection-bid"
   | "wasm-accept-collection-bid"
   | "wasm-finalize-sale"
   | "wasm-payout-market"
   | "wasm-payout-royalty"
-  | "wasm-payout-seller";
+  | "wasm-payout-seller"
+  | "wasm-refund-bidder";
 export function getEventAttributeValue(events: TransactionEventWithAttributes[], eventType: TxEventType, attributeKey: string) {
   const event = events.find((event) => event.type === eventType);
   return event?.attributes.find((attr) => attr.key === attributeKey)?.value ?? null;
