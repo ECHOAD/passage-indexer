@@ -198,6 +198,8 @@ async function getMintedNftCount(collectionAddress: string) {
 }
 
 async function getRemainingMintCount(collectionAddress: string) {
+  const nftCount = await getNftCount(collectionAddress);
+
   const [{ availableCount }] = await db
       .select({ availableCount: count() })
       .from(nft)
@@ -225,7 +227,7 @@ async function getRemainingMintCount(collectionAddress: string) {
           )
       );
 
-  return availableCount - ownedCount;
+  return nftCount - (availableCount - ownedCount);
 }
 
 async function getListedTokenCount(collectionAddress: string) {
