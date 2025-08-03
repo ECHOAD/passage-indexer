@@ -164,10 +164,10 @@ export async function getCollectionStats(collectionAddress: string) {
     nftCount,
     uniqueOwnerCount,
     floorPrice,
+    mintedNftCount,
+    remainingMintCount,
     ...saleAndVolumeStats,
     listedTokenCount,
-    mintedNftCount,
-    remainingMintCount
   };
 }
 
