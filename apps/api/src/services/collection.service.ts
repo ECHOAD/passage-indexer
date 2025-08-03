@@ -204,11 +204,12 @@ async function getRemainingMintCount(collectionAddress: string) {
       .where(
           and(
               eq(nft.collection, collectionAddress),
-              isNull(nft.mintedOnBlockHeight)
+              isNull(nft.mintedOnBlockHeight),
+              isNull(nft.migratedOnBlockHeight)
           )
       );
 
-  const [{ usedCount }] = await db
+  const [{ usedCount: ownedCount }] = await db
       .select({ usedCount: count() })
       .from(nft)
       .where(
@@ -224,7 +225,7 @@ async function getRemainingMintCount(collectionAddress: string) {
           )
       );
 
-  return availableCount - usedCount;
+  return availableCount - ownedCount;
 }
 
 async function getListedTokenCount(collectionAddress: string) {
