@@ -398,7 +398,6 @@ export class ContractIndexer extends Indexer {
           metadata: token_migration.metadata,
           collection: dbCollection.address,
           createdOnBlockHeight: height,
-          migratedOnBlockHeight: height,
           mintedOnBlockHeight: token_migration.is_minted ? height : null
         })
         .onConflictDoUpdate({
