@@ -1,6 +1,6 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import { mapCollection } from "@src/utils/collection.util";
-import {getCollections, SortOptions} from "@src/services/collection.service";
+import {getCollections, mintStatusKeys, SortOptions, sortOptionsKeys} from "@src/services/collection.service";
 
 const maxLimit = 100;
 
@@ -11,15 +11,15 @@ const route = createRoute({
   summary: "Get a list of collections.",
   request: {
     query: z.object({
-      skip: z.string().optional().default("0").openapi({ description: "NFTs to skip" }),
-      limit: z.string().optional().default(maxLimit.toString()).openapi({ description: "NFTs to return", maximum: maxLimit }),
-      mintStatus:  z.enum(["LIVE", "COMPLETED", "NOT_STARTED", "NOT_MINTABLE", "ALL"]).optional()
-          .default("ALL").openapi({ description: "Filter by mint status" }),
-    sort: z
-        .string()
-        .optional()
-        .default("createdHeightAsc")
-        .openapi({ description: "Sort order", enum: Object.values({} as SortOptions)})
+     skip: z.string().optional().default("0").openapi({ description: "NFTs to skip" }),
+     limit: z.string().optional().default(maxLimit.toString()).openapi({ description: "NFTs to return", maximum: maxLimit }),
+     mintStatus:  z.string().optional().default("ALL").openapi({ description: "Filter by mint status" })
+         .openapi({ description: "Filter by mint status", enum: mintStatusKeys}),
+     sort: z
+         .string()
+         .optional()
+         .default("createdHeightAsc")
+         .openapi({description: "Sort order", enum: sortOptionsKeys})
     })
   },
   responses: {
@@ -49,6 +49,8 @@ const route = createRoute({
                 unitPrice: z.string().nullable(),
                 unitDenom: z.string().nullable(),
                 nftCount: z.number(),
+                mintedNftCount: z.number(),
+                remainingNftCount: z.number(),
                 uniqueOwnerCount: z.number(),
                 floorPrice: z.string().nullable(),
                 totalSaleCount: z.number(),
@@ -97,12 +99,14 @@ export default new OpenAPIHono().openapi(route, async (c) => {
   const skip = parseInt(c.req.valid("query").skip);
   const limit = Math.min(maxLimit, parseInt(c.req.valid("query").limit));
   const mintStatus = c.req.valid("query").mintStatus;
+  const sort = c.req.valid("query").sort;
 
 
   const result = await getCollections({
       skip,
       limit,
-      mintStatus
+      mintStatus,
+      sort: sort
   })
 
   return c.json({

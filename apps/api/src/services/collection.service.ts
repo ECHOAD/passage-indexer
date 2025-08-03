@@ -1,4 +1,4 @@
-import { block, day, db, eq, collection, nft, nftListing, nftSale, and, lte, min, sql, sum, count, countDistinct, gte, nftToTrait, nftTrait, isNull, asc } from "database";
+import { block, day, db, eq, collection, nft, nftListing, nftSale, and, lte, min, sql, sum, count, countDistinct, gte, nftToTrait, nftTrait, isNull, asc, gt, isNotNull, or } from "database";
 import { TraitStats, GetTraitsOptions } from "@src/types/collection";
 import { udenomToDenom } from "@src/utils/math";
 import { getLastProcessedISODate } from "./block.service";
@@ -43,6 +43,10 @@ const sortOptions: Record<string, (a: MappedCollectionType, b: MappedCollectionT
   listedTokenCountDesc: (a, b) => b.listedTokenCount - a.listedTokenCount
 };
 
+
+export type MintStatus = "LIVE" | "COMPLETED" | "NOT_STARTED" | "NOT_MINTABLE" | "ALL"
+export const sortOptionsKeys = Object.keys(sortOptions) as (keyof typeof sortOptions)[];
+export const mintStatusKeys: MintStatus[] = ["LIVE", "COMPLETED", "NOT_STARTED", "NOT_MINTABLE", "ALL"];
 export type SortOptions = keyof typeof sortOptions;
 
 
@@ -56,31 +60,104 @@ export interface GetCollectionsParams {
 }
 
 
-export async function getCollections(filter: GetCollectionsParams){
-  const collections = await db.query.collection.findMany({
-    orderBy: [asc(collection.createdHeight), asc(collection.address)],
+export async function getCollections(filter: GetCollectionsParams) {
+  const base = db
+      .select({
+        address: collection.address,
+        createdHeight: collection.createdHeight,
+        name: collection.name,
+        symbol: collection.symbol,
+        mintContract: collection.mintContract,
+        marketContract: collection.marketContract,
+        minter: collection.minter,
+        creator: collection.creator,
+        description: collection.description,
+        image: collection.image,
+        externalLink: collection.externalLink,
+        royaltyAddress: collection.royaltyAddress,
+        royaltyFee: collection.royaltyFee,
+        maxNumToken: collection.maxNumToken,
+        perAddressLimit: collection.perAddressLimit,
+        whitelist: collection.whitelist,
+        startTime: collection.startTime,
+        unitPrice: collection.unitPrice,
+        unitDenom: collection.unitDenom,
+        collectorAddress: collection.collectorAddress,
+        tradingFeeBps: collection.tradingFeeBps,
+        minPrice: collection.minPrice,
+        mintedNftCount: sql<number>`COUNT(*) FILTER (WHERE ${nft.mintedOnBlockHeight} IS NOT NULL)`.as('mintedNftCount'),
+        remainingMintCount: sql<number>`COUNT(*) FILTER (
+        WHERE ${nft.mintedOnBlockHeight} IS NULL
+        AND ${nft.migratedOnBlockHeight} IS NOT NULL
+      )`.as('remainingMintCount'),})
+      .from(collection)
+      .leftJoin(nft, eq(collection.address, nft.collection))
+      .groupBy(collection.address);
 
-  });
+  let filteredQuery = db.select().from(base.as("sub")) as any;
+  const sub = base.as("sub");
 
-  const mappedCollections = await Promise.all(collections.map(mapCollection));
+  if (filter.mintStatus && filter.mintStatus !== "ALL") {
+    const minted = sub.mintedNftCount;
+    const remaining = sub.remainingMintCount;
 
-  mappedCollections.sort(sortOptions[filter.sort] || sortOptions.createdHeightAsc);
+    switch (filter.mintStatus) {
+      case "LIVE":
+          filteredQuery = filteredQuery.where(and(gt(remaining, 0), gt(minted, 0)));
+        break;
+      case "COMPLETED":
+        filteredQuery = filteredQuery.where(and(eq(remaining, 0), gt(minted, 0)));
+        break;
+      case "NOT_STARTED":
+        filteredQuery = filteredQuery.where(and(eq(minted, 0), gt(remaining, 0)));
+        break;
+      case "NOT_MINTABLE":
+        filteredQuery = filteredQuery.where(and(eq(remaining, 0), eq(minted, 0)));
+        break;
+    }
+  }
 
-  const filteredCollections = mappedCollections.slice(filter.skip, filter.skip + filter.limit);
+  const [{ count }] = await db
+      .select({ count: sql<number>`COUNT(*)` })
+      .from(filteredQuery.as("total"));
+
+  const paginated = await filteredQuery
+      .orderBy(asc(sub.createdHeight), asc(sub.address))
+      .offset(filter.skip)
+      .limit(filter.limit);
+
+  const mapped = await Promise.all(
+      paginated.map(async (col) => {
+        const base = await mapCollection(col);
+        const stats = await getCollectionStats(col.address);
+        return {
+          ...base,
+          ...stats,
+        };
+      })
+  );
+
+  // Aplicar sort adicional si es necesario
+  const sorted =
+      filter.sort && filter.sort !== "createdHeightAsc"
+          ? mapped.sort(sortOptions[filter.sort] || sortOptions.createdHeightAsc)
+          : mapped;
 
   return {
-    collections: filteredCollections,
-    total: mappedCollections.length,
-  }
+    collections: sorted,
+    total: count,
+  };
 }
 
 export async function getCollectionStats(collectionAddress: string) {
-  const [nftCount, uniqueOwnerCount, floorPrice, saleAndVolumeStats, listedTokenCount] = await Promise.all([
+  const [nftCount, uniqueOwnerCount, floorPrice, saleAndVolumeStats, listedTokenCount, mintedNftCount, remainingMintCount] = await Promise.all([
     getNftCount(collectionAddress),
     getUniqueOwnerCount(collectionAddress),
     getFloorPrice(collectionAddress),
     getSaleAndVolumeStats(collectionAddress),
-    getListedTokenCount(collectionAddress)
+    getListedTokenCount(collectionAddress),
+    getMintedNftCount(collectionAddress),
+    getRemainingMintCount(collectionAddress)
   ]);
 
   return {
@@ -88,7 +165,9 @@ export async function getCollectionStats(collectionAddress: string) {
     uniqueOwnerCount,
     floorPrice,
     ...saleAndVolumeStats,
-    listedTokenCount
+    listedTokenCount,
+    mintedNftCount,
+    remainingMintCount
   };
 }
 
@@ -97,7 +176,9 @@ async function getFloorPrice(collectionAddress: string) {
     .select({ floorPrice: min(nftListing.forSalePrice) })
     .from(nftListing)
     .innerJoin(nft, eq(nftListing.nft, nft.id))
-    .where(and(isNull(nftListing.unlistedBlockHeight), eq(nft.collection, collectionAddress)));
+    .innerJoin(collection, eq(nft.collection, collection.address))
+    .where(and(isNull(nftListing.unlistedBlockHeight), eq(nft.collection, collectionAddress),
+        gte(nftListing.forSalePrice, collection.minPrice)));
 
   return floorPrice;
 }
@@ -106,6 +187,44 @@ async function getNftCount(collectionAddress: string) {
   const [{ nftCount }] = await db.select({ nftCount: count() }).from(nft).where(eq(nft.collection, collectionAddress));
 
   return nftCount;
+}
+
+async function getMintedNftCount(collectionAddress: string) {
+  const [{nftCount}] = await db
+      .select({nftCount: count()})
+      .from(nft)
+      .where(and(eq(nft.collection, collectionAddress), isNotNull(nft.mintedOnBlockHeight)));
+  return nftCount;
+}
+
+async function getRemainingMintCount(collectionAddress: string) {
+  const [{ availableCount }] = await db
+      .select({ availableCount: count() })
+      .from(nft)
+      .where(
+          and(
+              eq(nft.collection, collectionAddress),
+              isNull(nft.mintedOnBlockHeight)
+          )
+      );
+
+  const [{ usedCount }] = await db
+      .select({ usedCount: count() })
+      .from(nft)
+      .where(
+          and(
+              eq(nft.collection, collectionAddress),
+              or(
+                  isNotNull(nft.mintedOnBlockHeight),
+                  and(
+                      isNotNull(nft.migratedOnBlockHeight),
+                      isNull(nft.mintedOnBlockHeight)
+                  )
+              )
+          )
+      );
+
+  return availableCount - usedCount;
 }
 
 async function getListedTokenCount(collectionAddress: string) {
