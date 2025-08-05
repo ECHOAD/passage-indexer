@@ -652,11 +652,7 @@ export class ContractIndexer extends Indexer {
 
     const wasFinalized = txEvents.some((event) => event.type === "wasm-finalize-sale");
 
-    if (wasRefunded) {
-      return;
-    }
-
-    const removedBlockHeight = wasFinalized || wasTooLow ? height : null;
+    const removedBlockHeight = wasFinalized || wasRefunded || wasTooLow ? height : null;
 
     if (wasFinalized) {
       await this.executeNftSale(dbTransaction, txEvents, tokenId, height);
