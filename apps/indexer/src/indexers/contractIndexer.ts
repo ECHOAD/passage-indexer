@@ -692,12 +692,14 @@ export class ContractIndexer extends Indexer {
       throw new Error(`Bid not found for ${tokenId} in ${marketAddress}`);
     }
 
-    await dbTransaction
-      .update(nftBid)
-      .set({
-        removedBlockHeight: height
-      })
-      .where(eq(nftBid.id, bid.id));
+    if (!bid.removedBlockHeight) {
+      await dbTransaction
+          .update(nftBid)
+          .set({
+            removedBlockHeight: height
+          })
+          .where(eq(nftBid.id, bid.id));
+    }
   }
 
   private async setNftCollectionBid(
