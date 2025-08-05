@@ -25,11 +25,6 @@ export const nftBid = pgTable(
       () => block.height
     ),
   },
-  (table) => [
-    uniqueIndex("nft_bid_owner_nft_where_removed_block_height_null")
-      .on(table.owner, table.nft)
-      .where(isNull(table.removedBlockHeight)),
-  ]
 );
 
 export const nftBidRelations = relations(nftBid, ({ one }) => ({

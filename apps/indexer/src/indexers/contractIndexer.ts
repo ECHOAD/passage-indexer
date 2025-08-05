@@ -946,6 +946,21 @@ export class ContractIndexer extends Indexer {
         .where(eq(nftListing.id, dbNft.activeListingId));
     }
 
+
+    // Removed bid if exists.
+    const nftBidDb = await dbTransaction.query.nftBid.findFirst({
+      where: and(eq(nftBid.nft, dbNft.id), eq(nftBid.owner, buyer), isNull(nftBid.removedBlockHeight))
+    });
+
+    if (nftBidDb) {
+      await dbTransaction
+          .update(nftBid)
+          .set({
+            removedBlockHeight: height
+          })
+          .where(eq(nftBid.id, nftBidDb.id));
+    }
+
     // Update the owner and sale status
     await dbTransaction
       .update(nft)

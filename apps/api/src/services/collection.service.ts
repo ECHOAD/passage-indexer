@@ -61,61 +61,96 @@ export interface GetCollectionsParams {
 
 
 export async function getCollections(filter: GetCollectionsParams) {
-  const base = db
-      .select({
-        address: collection.address,
-        createdHeight: collection.createdHeight,
-        name: collection.name,
-        symbol: collection.symbol,
-        mintContract: collection.mintContract,
-        marketContract: collection.marketContract,
-        minter: collection.minter,
-        creator: collection.creator,
-        description: collection.description,
-        image: collection.image,
-        externalLink: collection.externalLink,
-        royaltyAddress: collection.royaltyAddress,
-        royaltyFee: collection.royaltyFee,
-        maxNumToken: collection.maxNumToken,
-        perAddressLimit: collection.perAddressLimit,
-        whitelist: collection.whitelist,
-        startTime: collection.startTime,
-        unitPrice: collection.unitPrice,
-        unitDenom: collection.unitDenom,
-        collectorAddress: collection.collectorAddress,
-        tradingFeeBps: collection.tradingFeeBps,
-        minPrice: collection.minPrice,
-        mintedNftCount: sql<number>`COUNT(*) FILTER (WHERE ${nft.mintedOnBlockHeight} IS NOT NULL)`.as('mintedNftCount'),
-        remainingMintCount: sql<number>`COUNT(*) FILTER (
-        WHERE ${nft.mintedOnBlockHeight} IS NULL
-        AND ${nft.migratedOnBlockHeight} IS NOT NULL
-      )`.as('remainingMintCount'),})
-      .from(collection)
-      .leftJoin(nft, eq(collection.address, nft.collection))
-      .groupBy(collection.address);
+    const base = db
+        .select({
+            address: collection.address,
+            createdHeight: collection.createdHeight,
+            name: collection.name,
+            symbol: collection.symbol,
+            mintContract: collection.mintContract,
+            marketContract: collection.marketContract,
+            minter: collection.minter,
+            creator: collection.creator,
+            description: collection.description,
+            image: collection.image,
+            externalLink: collection.externalLink,
+            royaltyAddress: collection.royaltyAddress,
+            royaltyFee: collection.royaltyFee,
+            maxNumToken: collection.maxNumToken,
+            perAddressLimit: collection.perAddressLimit,
+            whitelist: collection.whitelist,
+            startTime: collection.startTime,
+            unitPrice: collection.unitPrice,
+            unitDenom: collection.unitDenom,
+            collectorAddress: collection.collectorAddress,
+            tradingFeeBps: collection.tradingFeeBps,
+            minPrice: collection.minPrice,
+            mintedNftCount: sql<number>`COUNT(*) FILTER (WHERE
+            ${nft.mintedOnBlockHeight}
+            IS
+            NOT
+            NULL
+            )`.as('mintedNftCount'),
+            remainingMintCount: sql<number>`COUNT(*) FILTER (
+        WHERE
+            ${nft.mintedOnBlockHeight}
+            IS
+            NULL
+            AND
+            ${nft.migratedOnBlockHeight}
+            IS
+            NOT
+            NULL
+            )`.as('remainingMintCount'),
+        })
+        .from(collection)
+        .leftJoin(nft, eq(collection.address, nft.collection))
+        .groupBy(collection.address);
 
-  let filteredQuery = db.select().from(base.as("sub")) as any;
-  const sub = base.as("sub");
+    const sub = base.as("sub");
+    let filteredQuery = db.select().from(sub) as any;
 
-  if (filter.mintStatus && filter.mintStatus !== "ALL") {
-    const minted = sub.mintedNftCount;
-    const remaining = sub.remainingMintCount;
+    if (filter.mintStatus && filter.mintStatus !== "ALL") {
+        const minted = sub.mintedNftCount;
+        const remaining = sub.remainingMintCount;
+        const mintContract = sub.mintContract;
+        const startTime = sub.startTime;
 
-    switch (filter.mintStatus) {
-      case "LIVE":
-          filteredQuery = filteredQuery.where(and(gt(remaining, 0), gt(minted, 0)));
-        break;
-      case "COMPLETED":
-        filteredQuery = filteredQuery.where(and(eq(remaining, 0), gt(minted, 0)));
-        break;
-      case "NOT_STARTED":
-        filteredQuery = filteredQuery.where(and(eq(minted, 0), gt(remaining, 0)));
-        break;
-      case "NOT_MINTABLE":
-        filteredQuery = filteredQuery.where(and(eq(remaining, 0), eq(minted, 0)));
-        break;
+        switch (filter.mintStatus) {
+            case "LIVE":
+                filteredQuery = filteredQuery.where(
+                    and(
+                        gt(remaining, 0),
+                        isNotNull(mintContract)
+                    )
+                );
+                break;
+
+            case "COMPLETED":
+                filteredQuery = filteredQuery.where(
+                    and(
+                        eq(remaining, 0),
+                        isNotNull(mintContract)
+                    )
+                );
+                break;
+
+            case "NOT_STARTED":
+                filteredQuery = filteredQuery.where(
+                    and(
+                        gt(startTime, sql`NOW
+                        ()`),
+                        isNotNull(mintContract)
+                    )
+                );
+                break;
+
+            case "NOT_MINTABLE":
+                filteredQuery = filteredQuery.where(isNull(mintContract));
+                break;
+        }
     }
-  }
+
 
   const [{ count }] = await db
       .select({ count: sql<number>`COUNT(*)` })
@@ -137,7 +172,6 @@ export async function getCollections(filter: GetCollectionsParams) {
       })
   );
 
-  // Aplicar sort adicional si es necesario
   const sorted =
       filter.sort && filter.sort !== "createdHeightAsc"
           ? mapped.sort(sortOptions[filter.sort] || sortOptions.createdHeightAsc)
