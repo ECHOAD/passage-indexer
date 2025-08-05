@@ -685,7 +685,7 @@ export class ContractIndexer extends Indexer {
     }
 
     const bid = await dbTransaction.query.nftBid.findFirst({
-      where: and(eq(nftBid.nft, dbNft.id), eq(nftBid.owner, owner), isNull(nftBid.removedBlockHeight))
+      where: and(eq(nftBid.nft, dbNft.id), eq(nftBid.owner, owner))
     });
 
     if (!bid) {
