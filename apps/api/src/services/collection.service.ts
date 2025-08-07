@@ -1,8 +1,9 @@
-import { block, day, db, eq, collection, nft, nftListing, nftSale, and, lte, min, sql, sum, count, countDistinct, gte, nftToTrait, nftTrait, isNull, asc, gt, isNotNull, or } from "database";
+import { block, day, db, eq, collection, nft, notInArray, nftListing, nftSale, and, lte, min, sql, sum, count, countDistinct, gte, nftToTrait, nftTrait, isNull, asc, gt, isNotNull, or } from "database";
 import { TraitStats, GetTraitsOptions } from "@src/types/collection";
 import { udenomToDenom } from "@src/utils/math";
 import { getLastProcessedISODate } from "./block.service";
 import {mapCollection} from "@src/utils/collection.util";
+import {IGNORED_COLLECTIONS} from "@src/utils/constants";
 
 
 type MappedCollectionType = Awaited<ReturnType<typeof mapCollection>>;
@@ -85,26 +86,24 @@ export async function getCollections(filter: GetCollectionsParams) {
             collectorAddress: collection.collectorAddress,
             tradingFeeBps: collection.tradingFeeBps,
             minPrice: collection.minPrice,
-            mintedNftCount: sql<number>`COUNT(*) FILTER (WHERE
-            ${nft.mintedOnBlockHeight}
-            IS
-            NOT
-            NULL
+
+            mintedNftCount: sql<number>`COUNT(*) FILTER (
+                WHERE ${nft.mintedOnBlockHeight} IS NOT NULL
             )`.as('mintedNftCount'),
-            remainingMintCount: sql<number>`COUNT(*) FILTER (
-        WHERE
-            ${nft.mintedOnBlockHeight}
-            IS
-            NULL
-            AND
-            ${nft.migratedOnBlockHeight}
-            IS
-            NOT
-            NULL
-            )`.as('remainingMintCount'),
+
+            migratedNftCount: sql<number>`COUNT(*) FILTER (
+                WHERE ${nft.migratedOnBlockHeight} IS NOT NULL
+            )`.as('migratedNftCount'),
+
+            availableToMintCount: sql<number>`CAST(${collection.maxNumToken} AS INTEGER) - 
+                (
+                    COUNT(*) FILTER (WHERE ${nft.mintedOnBlockHeight} IS NOT NULL) +
+                    COUNT(*) FILTER (WHERE ${nft.migratedOnBlockHeight} IS NOT NULL)
+                )`.as('availableToMintCount'),
         })
         .from(collection)
         .leftJoin(nft, eq(collection.address, nft.collection))
+        .where(notInArray(collection.address, IGNORED_COLLECTIONS))
         .groupBy(collection.address);
 
     const sub = base.as("sub");
@@ -112,7 +111,8 @@ export async function getCollections(filter: GetCollectionsParams) {
 
     if (filter.mintStatus && filter.mintStatus !== "ALL") {
         const minted = sub.mintedNftCount;
-        const remaining = sub.remainingMintCount;
+        const migrated = sub.migratedNftCount;
+        const available = sub.availableToMintCount;
         const mintContract = sub.mintContract;
         const startTime = sub.startTime;
 
@@ -120,7 +120,7 @@ export async function getCollections(filter: GetCollectionsParams) {
             case "LIVE":
                 filteredQuery = filteredQuery.where(
                     and(
-                        gt(remaining, 0),
+                        gt(available, 0),
                         isNotNull(mintContract)
                     )
                 );
@@ -129,7 +129,7 @@ export async function getCollections(filter: GetCollectionsParams) {
             case "COMPLETED":
                 filteredQuery = filteredQuery.where(
                     and(
-                        eq(remaining, 0),
+                        eq(available, 0),
                         isNotNull(mintContract)
                     )
                 );
@@ -138,8 +138,7 @@ export async function getCollections(filter: GetCollectionsParams) {
             case "NOT_STARTED":
                 filteredQuery = filteredQuery.where(
                     and(
-                        gt(startTime, sql`NOW
-                        ()`),
+                        gt(startTime, sql`NOW()`),
                         isNotNull(mintContract)
                     )
                 );
@@ -151,36 +150,35 @@ export async function getCollections(filter: GetCollectionsParams) {
         }
     }
 
+    const [{ count }] = await db
+        .select({ count: sql<number>`COUNT(*)` })
+        .from(filteredQuery.as("total"));
 
-  const [{ count }] = await db
-      .select({ count: sql<number>`COUNT(*)` })
-      .from(filteredQuery.as("total"));
+    const paginated = await filteredQuery
+        .orderBy(asc(sub.createdHeight), asc(sub.address))
+        .offset(filter.skip)
+        .limit(filter.limit);
 
-  const paginated = await filteredQuery
-      .orderBy(asc(sub.createdHeight), asc(sub.address))
-      .offset(filter.skip)
-      .limit(filter.limit);
+    const mapped = await Promise.all(
+        paginated.map(async (col) => {
+            const base = await mapCollection(col);
+            const stats = await getCollectionStats(col.address);
+            return {
+                ...base,
+                ...stats,
+            };
+        })
+    );
 
-  const mapped = await Promise.all(
-      paginated.map(async (col) => {
-        const base = await mapCollection(col);
-        const stats = await getCollectionStats(col.address);
-        return {
-          ...base,
-          ...stats,
-        };
-      })
-  );
+    const sorted =
+        filter.sort && filter.sort !== "createdHeightAsc"
+            ? mapped.sort(sortOptions[filter.sort] || sortOptions.createdHeightAsc)
+            : mapped;
 
-  const sorted =
-      filter.sort && filter.sort !== "createdHeightAsc"
-          ? mapped.sort(sortOptions[filter.sort] || sortOptions.createdHeightAsc)
-          : mapped;
-
-  return {
-    collections: sorted,
-    total: count,
-  };
+    return {
+        collections: sorted,
+        total: count,
+    };
 }
 
 export async function getCollectionStats(collectionAddress: string) {

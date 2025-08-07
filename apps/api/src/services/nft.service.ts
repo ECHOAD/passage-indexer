@@ -1,23 +1,24 @@
 import {
-  and,
-  asc,
-  block,
-  block as blockTable,
-  collection,
-  count,
-  day as dayTable,
-  db,
-  desc,
-  eq,
-  isNotNull,
-  isNull,
-  nft,
-  nftBid,
-  nftListing,
-  nftSale,
-  sql
+    and,
+    asc,
+    block,
+    block as blockTable,
+    collection,
+    count,
+    day as dayTable,
+    db,
+    desc,
+    eq,
+    isNotNull,
+    isNull,
+    nft,
+    nftBid,
+    nftListing,
+    nftSale, notInArray,
+    sql
 } from "database";
 import { getLastProcessedISODate } from "./block.service";
+import {IGNORED_COLLECTIONS} from "@src/utils/constants";
 
 export async function getNftActiveListings(nftId: string) {
   const listings = await db
@@ -55,7 +56,8 @@ export async function getNftSales(nftId: string) {
     .from(nftSale)
     .leftJoin(blockTable, eq(nftSale.saleBlockHeight, blockTable.height))
     .innerJoin(dayTable, eq(blockTable.dayId, dayTable.id))
-    .where(eq(nftSale.nft, nftId))
+    .innerJoin(nft, eq(nftSale.nft, nft.id))
+    .where(and(eq(nftSale.nft, nftId) , notInArray(nft.collection, IGNORED_COLLECTIONS)))
     .orderBy(asc(nftSale.saleBlockHeight));
 
   return sales.map((x) => ({

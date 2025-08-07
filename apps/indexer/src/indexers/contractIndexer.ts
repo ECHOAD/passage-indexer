@@ -153,7 +153,7 @@ export class ContractIndexer extends Indexer {
       createZodHandler(CollectionUpdateConfigSchema, (collectionUpdateConfig) =>
         this.updateCollectionMarketplaceConfig(dbTransaction, decodedMessage.contract, collectionUpdateConfig)
       ),
-      createZodHandler(NftMintTxSchema, (nftMint) => this.mintNft(dbTransaction, txEvents, height)),
+      createZodHandler(NftMintTxSchema, (nftMint) => this.mintNft(dbTransaction,msg, txEvents, height)),
       createZodHandler(NftSetAskSchema, (nftSetAsk) => this.setNftForSale(dbTransaction, txEvents, height)),
       createZodHandler(NftRemoveAskSchema, (nftRemoveAsk) => this.removeNftSale(dbTransaction, txEvents, nftRemoveAsk.remove_ask.token_id, height)),
       createZodHandler(NftSetBidSchema, (nftSetBid) =>
@@ -441,8 +441,8 @@ export class ContractIndexer extends Indexer {
     }
   }
 
-  private async mintNft(dbTransaction: DbTransaction, txEvents: TransactionEventWithAttributes[], height: number) {
-    const minterOrCollectionAddress = getEventAttributeValue(txEvents, "wasm", "_contract_address");
+  private async mintNft(dbTransaction: DbTransaction, msg: Message, txEvents: TransactionEventWithAttributes[], height: number) {
+    const minterOrCollectionAddress = getEventAttributeValue(txEvents, "wasm", "_contract_address", msg.index);
     const tokenId = getEventAttributeValue(txEvents, "wasm", "token_id");
     const normalizedTokenId = tokenId && parseTokenId(tokenId);
     const owner = getEventAttributeValue(txEvents, "coin_spent", "spender");
