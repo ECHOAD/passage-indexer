@@ -31,7 +31,7 @@ export function getEventAttributeValue(events: TransactionEventWithAttributes[],
 
 
 type EventAttributeSearch = {
-    eventType: string;
+    eventType: TxEventType;
     attributeKeys: string[];
 };
 
@@ -42,15 +42,18 @@ export function getEventsAttributeValuesGrouped(
     const result: Array<Record<string, Record<string, string | null>>> = [];
 
     for (const { eventType, attributeKeys } of searchParams) {
-        const event = events.find((e) => e.type === eventType);
-        const attributesMap: Record<string, string | null> = {};
+        const matchingEvents = events.filter((e) => e.type === eventType);
 
-        for (const key of attributeKeys) {
-            const attr = event?.attributes.find((a) => a.key === key);
-            attributesMap[key] = attr?.value ?? null;
+        for (const event of matchingEvents) {
+            const attributesMap: Record<string, string | null> = {};
+
+            for (const key of attributeKeys) {
+                const attr = event.attributes.find((a) => a.key === key);
+                attributesMap[key] = attr?.value ?? null;
+            }
+
+            result.push({ [eventType]: attributesMap });
         }
-
-        result.push({ [eventType]: attributesMap });
     }
 
     return result;

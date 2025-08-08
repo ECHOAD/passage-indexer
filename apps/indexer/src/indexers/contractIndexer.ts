@@ -456,6 +456,8 @@ export class ContractIndexer extends Indexer {
 
     for (const eventValue of eventValues) {
 
+      console.log(eventValue)
+
       const tokenId = eventValue["wasm"]?.token_id;
       const normalizedTokenId = tokenId && parseTokenId(tokenId);
       const owner = eventValue["coin_spent"]?.spender;
