@@ -28,17 +28,11 @@ export function getEventAttributeValue(
     events: TransactionEventWithAttributes[],
     eventType: TxEventType,
     attributeKey: string,
-    msgIndex?: number
+    index?: number
 ) {
-  const filteredEvents = events.filter((event: any) =>
-      event.type === eventType &&
-      (msgIndex === undefined || event.index === msgIndex)
-  );
+    const event = events.find((event) =>
+        event.type === eventType && (index === undefined || event.index === index)
+    );
 
-  for (const event of filteredEvents) {
-    const attr = event.attributes.find((attr) => attr.key === attributeKey);
-    if (attr) return attr.value;
-  }
-
-  return null;
+    return event?.attributes.find((attr) => attr.key === attributeKey)?.value ?? null;
 }
