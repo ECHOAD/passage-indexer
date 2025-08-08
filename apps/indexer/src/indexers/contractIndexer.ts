@@ -447,6 +447,7 @@ export class ContractIndexer extends Indexer {
     const normalizedTokenId = tokenId && parseTokenId(tokenId);
     const owner = getEventAttributeValue(txEvents, "coin_spent", "spender", msg.index);
     const mintPrice = getEventAttributeValue(txEvents, "wasm", "mint_price", msg.index);
+    console.log("Minting NFT", height, minterOrCollectionAddress, normalizedTokenId, owner, mintPrice);
 
     if (!minterOrCollectionAddress) throw new Error(`Minter or collection address not found (#${height})`);
 
