@@ -443,10 +443,10 @@ export class ContractIndexer extends Indexer {
 
   private async mintNft(dbTransaction: DbTransaction, msg: Message, txEvents: TransactionEventWithAttributes[], height: number) {
     const minterOrCollectionAddress = getEventAttributeValue(txEvents, "wasm", "_contract_address", msg.index);
-    const tokenId = getEventAttributeValue(txEvents, "wasm", "token_id");
+    const tokenId = getEventAttributeValue(txEvents, "wasm", "token_id", msg.index);
     const normalizedTokenId = tokenId && parseTokenId(tokenId);
-    const owner = getEventAttributeValue(txEvents, "coin_spent", "spender");
-    const mintPrice = getEventAttributeValue(txEvents, "wasm", "mint_price");
+    const owner = getEventAttributeValue(txEvents, "coin_spent", "spender", msg.index);
+    const mintPrice = getEventAttributeValue(txEvents, "wasm", "mint_price", msg.index);
 
     if (!minterOrCollectionAddress) throw new Error(`Minter or collection address not found (#${height})`);
 
