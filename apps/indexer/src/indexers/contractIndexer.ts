@@ -449,7 +449,7 @@ export class ContractIndexer extends Indexer {
       eventType: "wasm",
       attributeKeys: ["token_id", "mint_price", "_contract_address"]
     }])
-    const owner = getEventAttributeValue(txEvents, "wasm", "owner");
+    const owner = getEventAttributeValue(txEvents, "coin_spent", "spender");
 
     for (const eventValue of eventValues) {
 
