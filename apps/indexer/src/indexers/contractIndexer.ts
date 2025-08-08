@@ -447,8 +447,15 @@ export class ContractIndexer extends Indexer {
 
     const eventValues = getEventsAttributeValuesGrouped(txEvents, [{
       eventType: "wasm",
-      attributeKeys: ["token_id", "mint_price", "_contract_address"]
+      attributeKeys: [{
+          key: "token_id", required: true
+      },{
+          key: "mint_price", required: true
+      }, {
+          key: "_contract_address", required: true
+      }]
     }])
+
     const owner = getEventAttributeValue(txEvents, "coin_spent", "spender");
 
     for (const eventValue of eventValues) {
