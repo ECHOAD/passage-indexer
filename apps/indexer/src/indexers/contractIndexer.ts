@@ -97,15 +97,15 @@ export class ContractIndexer extends Indexer {
     const jsonData = JSON.parse(stringBuffer);
 
     const handlers: ZodHandler<any>[] = [
-      createZodHandler(CollectionTxSchema, (collectionTx) => this.handleCreateCollection(height, collectionTx, dbTransaction, txEvents)),
+      createZodHandler(CollectionTxSchema, (collectionTx) => this.handleCreateCollection(height, collectionTx, msg, dbTransaction, txEvents)),
       createZodHandler(CollectionMinterTxSchema, (collectionMinterTx) =>
-        this.handleAssignMinterToCollection(height, collectionMinterTx, dbTransaction, txEvents)
+        this.handleAssignMinterToCollection(height, collectionMinterTx, msg, dbTransaction, txEvents)
       ),
       createZodHandler(CollectionMarketplaceTxSchema, (collectionMarketplaceTx) =>
-        this.insertMarketplaceData(height, dbTransaction, collectionMarketplaceTx, txEvents)
+        this.insertMarketplaceData(height, dbTransaction, collectionMarketplaceTx,msg, txEvents)
       ),
       createZodHandler(WhitelistInfoSchema, (whitelistInfo) =>
-        this.handleCreateWhitelist(height, decodedMessage.admin, decodedMessage.label, whitelistInfo, dbTransaction, txEvents)
+        this.handleCreateWhitelist(height, decodedMessage.admin, decodedMessage.label, whitelistInfo, msg, dbTransaction, txEvents)
       )
     ];
 
@@ -227,8 +227,8 @@ export class ContractIndexer extends Indexer {
     }
   }
 
-  private async handleCreateCollection(height: number, collectionTx: CollectionTx, dbTransaction: DbTransaction, txEvents: TransactionEventWithAttributes[]) {
-    const collectionAddress = getEventAttributeValue(txEvents, "instantiate", "_contract_address");
+  private async handleCreateCollection(height: number, collectionTx: CollectionTx, msg: Message, dbTransaction: DbTransaction, txEvents: TransactionEventWithAttributes[]) {
+    const collectionAddress = getEventAttributeValue(txEvents, "instantiate", "_contract_address", msg.index);
 
     if (!collectionAddress) throw new Error(`Collection address not found for ${collectionTx.name}`);
 
@@ -250,10 +250,11 @@ export class ContractIndexer extends Indexer {
   private async handleAssignMinterToCollection(
     height: number,
     collectionMinterTx: CollectionMinterTx,
+    msg: Message,
     dbTransaction: DbTransaction,
     txEvents: TransactionEventWithAttributes[]
   ) {
-    const minterAddress = getEventAttributeValue(txEvents, "instantiate", "_contract_address");
+    const minterAddress = getEventAttributeValue(txEvents, "instantiate", "_contract_address", msg.index);
 
     if (!minterAddress) throw new Error(`Collection address not found for ${collectionMinterTx.cw721_address} (#${height})`);
 
@@ -276,9 +277,10 @@ export class ContractIndexer extends Indexer {
     height: number,
     dbTransaction: DbTransaction,
     collectionMarketplaceTx: CollectionMarketplaceTx,
+    msg: Message,
     txEvents: TransactionEventWithAttributes[]
   ) {
-    const marketContractAddress = getEventAttributeValue(txEvents, "instantiate", "_contract_address");
+    const marketContractAddress = getEventAttributeValue(txEvents, "instantiate", "_contract_address", msg.index);
 
     if (!marketContractAddress) throw new Error(`Marketplace contract address not found for ${collectionMarketplaceTx.cw721_address} (height: #${height})`);
 
@@ -449,7 +451,7 @@ export class ContractIndexer extends Indexer {
     const mintPrice = getEventAttributeValue(txEvents, "wasm", "mint_price", msg.index);
     console.warn(`Minting NFT with tokenId ${normalizedTokenId} for owner ${owner} at height ${height}. index ${msg.index}`);
 
-    if (!minterOrCollectionAddress) throw new Error(`Minter or collection address not found (#${height})`);
+    if (!minterOrCollectionAddress) throw new Error(`Minter or collection address not found (#${height}) index ${msg.index} for token ${normalizedTokenId}`);
 
     const dbCollection = await dbTransaction.query.collection.findFirst({
       where: (collection, { or, eq }) => or(eq(collection.address, minterOrCollectionAddress), eq(collection.mintContract, minterOrCollectionAddress))
@@ -1046,10 +1048,11 @@ export class ContractIndexer extends Indexer {
     admin: string,
     label: string,
     whitelistInfo: WhitelistInfoTx,
+    msg: Message,
     dbTransaction: DbTransaction,
     txEvents: TransactionEventWithAttributes[]
   ) {
-    const whitelistAddress = getEventAttributeValue(txEvents, "instantiate", "_contract_address");
+    const whitelistAddress = getEventAttributeValue(txEvents, "instantiate", "_contract_address", msg.index);
 
     if (!whitelistAddress) throw new Error("Whitelist address not found");
     if (!admin) throw new Error("Admin not found");
