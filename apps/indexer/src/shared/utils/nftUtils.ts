@@ -24,7 +24,21 @@ type TxEventType =
   | "wasm-payout-royalty"
   | "wasm-payout-seller"
   | "wasm-refund-bidder";
-export function getEventAttributeValue(events: TransactionEventWithAttributes[], eventType: TxEventType, attributeKey: string, index?: number) {
-  const event = events.find((event) => event.type === eventType && (!index || event.index === index));
-  return event?.attributes.find((attr) => attr.key === attributeKey)?.value ?? null;
+export function getEventAttributeValue(
+    events: TransactionEventWithAttributes[],
+    eventType: TxEventType,
+    attributeKey: string,
+    msgIndex?: number
+) {
+  const filteredEvents = events.filter((event: any) =>
+      event.type === eventType &&
+      (msgIndex === undefined || event.index === msgIndex)
+  );
+
+  for (const event of filteredEvents) {
+    const attr = event.attributes.find((attr) => attr.key === attributeKey);
+    if (attr) return attr.value;
+  }
+
+  return null;
 }
