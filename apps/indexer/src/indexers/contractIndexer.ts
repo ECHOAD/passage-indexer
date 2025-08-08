@@ -448,11 +448,8 @@ export class ContractIndexer extends Indexer {
     const eventValues = getEventsAttributeValuesGrouped(txEvents, [{
       eventType: "wasm",
       attributeKeys: ["token_id", "mint_price", "_contract_address"]
-    },
-    {
-      eventType: "coin_spent",
-      attributeKeys: ["spender"]
     }])
+    const owner = getEventAttributeValue(txEvents, "wasm", "owner");
 
     for (const eventValue of eventValues) {
 
@@ -460,7 +457,6 @@ export class ContractIndexer extends Indexer {
 
       const tokenId = eventValue["wasm"]?.token_id;
       const normalizedTokenId = tokenId && parseTokenId(tokenId);
-      const owner = eventValue["coin_spent"]?.["spender"];
       const mintPrice = eventValue["wasm"]?.mint_price;
       const minterOrCollectionAddress = eventValue["wasm"]?._contract_address;
 
