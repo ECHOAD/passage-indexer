@@ -460,7 +460,7 @@ export class ContractIndexer extends Indexer {
 
       const tokenId = eventValue["wasm"]?.token_id;
       const normalizedTokenId = tokenId && parseTokenId(tokenId);
-      const owner = eventValue["coin_spent"]?.spender;
+      const owner = eventValue["coin_spent"]?.["spender"];
       const mintPrice = eventValue["wasm"]?.mint_price;
       const minterOrCollectionAddress = eventValue["wasm"]?._contract_address;
 
