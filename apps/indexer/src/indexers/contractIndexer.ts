@@ -894,6 +894,11 @@ export class ContractIndexer extends Indexer {
       throw new Error(`Owner mismatch for ${tokenId}`);
     }
 
+    if (txEvents.some((event) => event.type === "wasm-finalize-sale")) {
+        await this.executeNftSale(dbTransaction, txEvents, tokenId, height);
+    }
+
+
     await dbTransaction.insert(nftTransfer).values({
       fromOwner: dbNft.owner,
       toOwner: toOwner,

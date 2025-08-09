@@ -72,8 +72,7 @@ export default new OpenAPIHono().openapi(route, async (c) => {
   const limit = Math.min(maxLimit, parseInt(c.req.valid("query").limit));
   const collectionAddress = c.req.valid("query").collectionAddress;
 
-  const [{ count: totalCount }] = await db.select({ count: count() }).from(nft)
-      .where(and(eq(nft.owner, accountAddress), notInArray(nft.collection, IGNORED_COLLECTIONS)));
+
 
   const conditions = [
     eq(nft.owner, accountAddress),
@@ -83,6 +82,9 @@ export default new OpenAPIHono().openapi(route, async (c) => {
   if (collectionAddress) {
     conditions.push(eq(nft.collection, collectionAddress));
   }
+
+  const [{ count: totalCount }] = await db.select({ count: count() }).from(nft)
+      .where(and(...conditions));
 
   const nfts = await db
     .select()
@@ -123,7 +125,8 @@ export default new OpenAPIHono().openapi(route, async (c) => {
   const collectionRelatedToTheAccount = await db
     .select({
         name: collection.name,
-        address: collection.address
+        address: collection.address,
+        quantity: count(nft.id).as('quantity'),
     })
     .from(collection)
     .innerJoin(nft, eq(nft.collection, collection.address))
