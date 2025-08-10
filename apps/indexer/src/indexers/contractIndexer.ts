@@ -961,14 +961,14 @@ export class ContractIndexer extends Indexer {
       royaltyFeeAddress: royaltyRecipient
     });
 
-    // Update listings
+    // Update the listing related to the token. Old owner listings are removed.
     if (dbNft.activeListingId) {
       await dbTransaction
         .update(nftListing)
         .set({
           unlistedBlockHeight: height
         })
-        .where(and(eq(nftListing.id, dbNft.activeListingId), eq(nftListing.owner, dbNft.owner)));
+        .where(and(eq(nftListing.nft, dbNft.id),eq(nftListing.owner, dbNft.owner), isNull(nftListing.unlistedBlockHeight)));
     }
 
 
