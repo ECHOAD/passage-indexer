@@ -961,14 +961,14 @@ export class ContractIndexer extends Indexer {
       royaltyFeeAddress: royaltyRecipient
     });
 
-    // Update listing
+    // Update listings
     if (dbNft.activeListingId) {
       await dbTransaction
         .update(nftListing)
         .set({
           unlistedBlockHeight: height
         })
-        .where(eq(nftListing.id, dbNft.activeListingId));
+        .where(and(eq(nftListing.id, dbNft.activeListingId), eq(nftListing.owner, dbNft.owner)));
     }
 
 
