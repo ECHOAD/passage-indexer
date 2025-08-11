@@ -906,6 +906,10 @@ export class ContractIndexer extends Indexer {
       nftId: dbNft.id
     });
 
+    // Remove listing of the older owner
+    await dbTransaction.update(nftListing).set({ unlistedBlockHeight: height })
+        .where(and(eq(nftListing.nft, dbNft.id), isNull(nftListing.unlistedBlockHeight)));
+
     await dbTransaction
       .update(nft)
       .set({

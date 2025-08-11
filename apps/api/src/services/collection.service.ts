@@ -95,7 +95,7 @@ export async function getCollections(filter: GetCollectionsParams) {
                 WHERE ${nft.migratedOnBlockHeight} IS NOT NULL
             )`.as('migratedNftCount'),
 
-            availableToMintCount: sql<number>`CAST(${collection.maxNumToken} AS INTEGER) - 
+            availableToMintCount: sql<number>`COUNT(${nft.id}) - 
                 (
                     COUNT(*) FILTER (WHERE ${nft.mintedOnBlockHeight} IS NOT NULL) +
                     COUNT(*) FILTER (WHERE ${nft.migratedOnBlockHeight} IS NOT NULL)
@@ -110,8 +110,6 @@ export async function getCollections(filter: GetCollectionsParams) {
     let filteredQuery = db.select().from(sub) as any;
 
     if (filter.mintStatus && filter.mintStatus !== "ALL") {
-        const minted = sub.mintedNftCount;
-        const migrated = sub.migratedNftCount;
         const available = sub.availableToMintCount;
         const mintContract = sub.mintContract;
         const startTime = sub.startTime;
