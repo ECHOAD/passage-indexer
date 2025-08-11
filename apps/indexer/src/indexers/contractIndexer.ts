@@ -583,30 +583,30 @@ export class ContractIndexer extends Indexer {
       throw new Error(`Nft not found for token ${normalizedTokenId} collection ${dbCollection.address}`);
     }
 
-    if (txEvents.some((event) => event.type === "wasm-finalize-sale")) {
-      await this.executeNftSale(dbTransaction, txEvents, normalizedTokenId, height);
-    } else {
-      if (!dbNft.owner) {
+    if (!dbNft.owner) {
         throw new Error(`Owner not found for token ${normalizedTokenId} collection ${dbCollection.address}`);
-      }
+    }
 
-      const insertedListing = await dbTransaction
+    const insertedListing = await dbTransaction
         .insert(nftListing)
         .values({
-          owner: dbNft.owner,
-          nft: dbNft.id,
-          forSalePrice: sellPrice.amount,
-          forSaleDenom: sellPrice.denom,
-          forSaleBlockHeight: height
+            owner: dbNft.owner,
+            nft: dbNft.id,
+            forSalePrice: sellPrice.amount,
+            forSaleDenom: sellPrice.denom,
+            forSaleBlockHeight: height
         })
         .returning();
 
-      await dbTransaction
-        .update(nft)
-        .set({
-          activeListingId: insertedListing[0].id
-        })
-        .where(eq(nft.id, dbNft.id));
+    await dbTransaction
+          .update(nft)
+          .set({
+              activeListingId: insertedListing[0].id
+          })
+          .where(eq(nft.id, dbNft.id));
+
+    if (txEvents.some((event) => event.type === "wasm-finalize-sale")) {
+      await this.executeNftSale(dbTransaction, txEvents, normalizedTokenId, height);
     }
   }
 
