@@ -155,7 +155,7 @@ export class ContractIndexer extends Indexer {
       ),
       createZodHandler(NftMintTxSchema, (nftMint) => this.mintNft(dbTransaction, txEvents, height)),
       createZodHandler(NftSetAskSchema, (nftSetAsk) => this.setNftForSale(dbTransaction, txEvents, height)),
-      createZodHandler(NftRemoveAskSchema, (nftRemoveAsk) => this.removeNftSale(dbTransaction, txEvents, nftRemoveAsk.remove_ask.token_id, height)),
+      createZodHandler(NftRemoveAskSchema, (nftRemoveAsk) => this.removeNftSale(dbTransaction, txEvents, height)),
       createZodHandler(NftSetBidSchema, (nftSetBid) =>
         this.setNftBid(
           dbTransaction,
@@ -610,14 +610,18 @@ export class ContractIndexer extends Indexer {
     }
   }
 
-  private async removeNftSale(dbTransaction: DbTransaction, txEvents: TransactionEventWithAttributes[], tokenId: string, height: number) {
+  private async removeNftSale(dbTransaction: DbTransaction, txEvents: TransactionEventWithAttributes[], height: number) {
     const collectionAddress = getEventAttributeValue(txEvents, "wasm-remove-ask", "collection");
+    const tokenId = getEventAttributeValue(txEvents, "wasm-remove-ask", "token_id");
+    const normalizedTokenId = tokenId && parseTokenId(tokenId);
 
     if (!collectionAddress) throw new Error(`Collection address not found for remove ask`);
 
+    if (!normalizedTokenId) throw new Error(`Token id not found for collection ${collectionAddress}`);
+
     const dbCollection = await dbTransaction.query.collection.findFirst({
       where: (collection, { or, eq }) => or(eq(collection.address, collectionAddress),
-          eq(collection.mintContract, collectionAddress), eq(collection.marketContract, collectionAddress))
+          eq(collection.mintContract, collectionAddress))
     });
 
     if (!dbCollection) {
@@ -625,7 +629,7 @@ export class ContractIndexer extends Indexer {
     }
 
     const dbNft = await dbTransaction.query.nft.findFirst({
-      where: (nft, { and, eq }) => and(eq(nft.tokenId, parseTokenId(tokenId)), eq(nft.collection, dbCollection.address))
+      where: (nft, { and, eq }) => and(eq(nft.tokenId, normalizedTokenId), eq(nft.collection, dbCollection.address))
     });
 
     if (!dbNft) {
