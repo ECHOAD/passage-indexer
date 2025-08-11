@@ -587,6 +587,14 @@ export class ContractIndexer extends Indexer {
         throw new Error(`Owner not found for token ${normalizedTokenId} collection ${dbCollection.address}`);
     }
 
+    const lastListing = await dbTransaction.query.nftListing.findFirst({
+        where: (nftListing, { and, eq }) => and(eq(nftListing.nft, dbNft.id))
+    });
+
+    if(lastListing){
+        await dbTransaction.update(nftListing).set({ unlistedBlockHeight: height }).where(eq(nftListing.id, lastListing.id));
+    }
+
     const insertedListing = await dbTransaction
         .insert(nftListing)
         .values({
