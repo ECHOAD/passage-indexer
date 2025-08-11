@@ -5,7 +5,7 @@ import { apiRouter } from "./routers/apiRouter";
 
 const app = new Hono();
 
-const { PORT = "3001" } = process.env;
+const { PORT = "3002" } = process.env;
 
 app.route("/", apiRouter);
 

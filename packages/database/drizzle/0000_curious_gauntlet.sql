@@ -270,6 +270,7 @@ ALTER TABLE "nft" ADD CONSTRAINT "nft_minted_on_block_height_block_height_fk" FO
 ALTER TABLE "nft" ADD CONSTRAINT "nft_airdropped_on_block_height_block_height_fk" FOREIGN KEY ("airdropped_on_block_height") REFERENCES "public"."block"("height") ON DELETE cascade ON UPDATE cascade;--> statement-breakpoint
 ALTER TABLE "nft" ADD CONSTRAINT "nft_migrated_on_block_height_block_height_fk" FOREIGN KEY ("migrated_on_block_height") REFERENCES "public"."block"("height") ON DELETE cascade ON UPDATE cascade;--> statement-breakpoint
 ALTER TABLE "nft" ADD CONSTRAINT "nft_collection_collection_address_fk" FOREIGN KEY ("collection") REFERENCES "public"."collection"("address") ON DELETE cascade ON UPDATE cascade;--> statement-breakpoint
+ALTER TABLE "nft" ADD CONSTRAINT "nft_active_listing_id_nft_listing_id_fk" FOREIGN KEY ("active_listing_id") REFERENCES "public"."nft_listing"("id") ON DELETE set null ON UPDATE cascade;--> statement-breakpoint
 ALTER TABLE "nft_sale" ADD CONSTRAINT "nft_sale_nft_nft_id_fk" FOREIGN KEY ("nft") REFERENCES "public"."nft"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "nft_sale" ADD CONSTRAINT "nft_sale_sale_block_height_block_height_fk" FOREIGN KEY ("sale_block_height") REFERENCES "public"."block"("height") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "nft_bid" ADD CONSTRAINT "nft_bid_nft_nft_id_fk" FOREIGN KEY ("nft") REFERENCES "public"."nft"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -319,8 +320,10 @@ CREATE INDEX "collection_min_contract" ON "collection" USING btree ("mint_contra
 CREATE UNIQUE INDEX "nft_collection_token_id" ON "nft" USING btree ("collection","token_id");--> statement-breakpoint
 CREATE INDEX "nft_minted_on_block_height" ON "nft" USING btree ("minted_on_block_height");--> statement-breakpoint
 CREATE INDEX "nft_owner" ON "nft" USING btree ("owner");--> statement-breakpoint
+CREATE INDEX "nft_active_listing_idx" ON "nft" USING btree ("active_listing_id");--> statement-breakpoint
 CREATE INDEX "nft_sale_nft" ON "nft_sale" USING btree ("nft");--> statement-breakpoint
 CREATE UNIQUE INDEX "nft_collection_bid_owner_collection_where_removed_block_height_null" ON "nft_collection_bid" USING btree ("owner","collection") WHERE "nft_collection_bid"."removed_block_height" is null;--> statement-breakpoint
+CREATE UNIQUE INDEX "uniq_open_listing_per_nft" ON "nft_listing" USING btree ("nft") WHERE "nft_listing"."unlisted_block_height" is null;--> statement-breakpoint
 CREATE INDEX "whitelist_collection" ON "whitelist" USING btree ("collection");--> statement-breakpoint
 CREATE INDEX "whitelist_member_address" ON "whitelist_member" USING btree ("address");--> statement-breakpoint
 CREATE INDEX "nft_trait_collection" ON "nft_trait" USING btree ("collection");

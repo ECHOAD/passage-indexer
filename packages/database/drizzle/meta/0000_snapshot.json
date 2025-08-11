@@ -1,5 +1,5 @@
 {
-  "id": "af28ebbc-27b9-4b72-b96e-eceb0007ae98",
+  "id": "682df3c2-7da4-45f7-8326-474144c258a7",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -1667,6 +1667,21 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "nft_active_listing_idx": {
+          "name": "nft_active_listing_idx",
+          "columns": [
+            {
+              "expression": "active_listing_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -1733,6 +1748,19 @@
             "address"
           ],
           "onDelete": "cascade",
+          "onUpdate": "cascade"
+        },
+        "nft_active_listing_id_nft_listing_id_fk": {
+          "name": "nft_active_listing_id_nft_listing_id_fk",
+          "tableFrom": "nft",
+          "tableTo": "nft_listing",
+          "columnsFrom": [
+            "active_listing_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "cascade"
         }
       },
@@ -1919,6 +1947,7 @@
           "notNull": false
         }
       },
+      "indexes": {},
       "foreignKeys": {
         "nft_bid_nft_nft_id_fk": {
           "name": "nft_bid_nft_nft_id_fk",
@@ -2151,7 +2180,24 @@
           "notNull": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "uniq_open_listing_per_nft": {
+          "name": "uniq_open_listing_per_nft",
+          "columns": [
+            {
+              "expression": "nft",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"nft_listing\".\"unlisted_block_height\" is null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "nft_listing_nft_nft_id_fk": {
           "name": "nft_listing_nft_nft_id_fk",
