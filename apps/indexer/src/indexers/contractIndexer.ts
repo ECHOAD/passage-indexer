@@ -593,6 +593,7 @@ export class ContractIndexer extends Indexer {
 
     if(lastListing){
         await dbTransaction.update(nftListing).set({ unlistedBlockHeight: height }).where(eq(nftListing.id, lastListing.id));
+        console.log("Unlisted last listing", {})
     }
 
     const insertedListing = await dbTransaction
@@ -606,16 +607,26 @@ export class ContractIndexer extends Indexer {
         })
         .returning();
 
-    await dbTransaction
+    const nftUpdated = await dbTransaction
           .update(nft)
           .set({
               activeListingId: insertedListing[0].id
           })
-          .where(eq(nft.id, dbNft.id));
+          .where(eq(nft.id, dbNft.id))
+        .returning();
 
     if (txEvents.some((event) => event.type === "wasm-finalize-sale")) {
       await this.executeNftSale(dbTransaction, txEvents, normalizedTokenId, height);
     }
+
+    console.log("Set nft for sale", {
+      collectionAddress,
+      tokenId,
+      normalizedTokenId,
+      lastListing,
+      seller,
+      nftUpdated
+    })
   }
 
   private async removeNftSale(dbTransaction: DbTransaction, txEvents: TransactionEventWithAttributes[], height: number) {
@@ -648,8 +659,16 @@ export class ContractIndexer extends Indexer {
       throw new Error(`Nft ${tokenId} in ${collectionAddress} is not listed`);
     }
 
-    await dbTransaction.update(nftListing).set({ unlistedBlockHeight: height }).where(eq(nftListing.id, dbNft.activeListingId));
-    await dbTransaction.update(nft).set({ activeListingId: null }).where(eq(nft.id, dbNft.id));
+    const updatedListing = await dbTransaction.update(nftListing).set({ unlistedBlockHeight: height }).where(eq(nftListing.id, dbNft.activeListingId));
+    const updatedNft = await dbTransaction.update(nft).set({ activeListingId: null }).where(eq(nft.id, dbNft.id));
+
+    console.log("Remove nft sale", {
+      updatedListing,
+      updatedNft,
+      collectionAddress,
+      tokenId,
+      normalizedTokenId
+    })
   }
 
   private async setNftBid(

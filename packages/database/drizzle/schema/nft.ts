@@ -68,7 +68,11 @@ export const nft = pgTable(
         onUpdate: "cascade",
       }
     ),
-    activeListingId: uuid("active_listing_id"),
+    activeListingId: uuid("active_listing_id")
+        .references(() => nftListing.id, {
+            onDelete: "set null",
+            onUpdate: "cascade",
+        }),
   },
   (table) => {
     return {
@@ -80,6 +84,9 @@ export const nft = pgTable(
         table.mintedOnBlockHeight
       ),
       owner: index("nft_owner").on(table.owner),
+      nftActiveListingIdx: index("nft_active_listing_idx").on(
+          table.activeListingId
+      ),
     };
   }
 );
