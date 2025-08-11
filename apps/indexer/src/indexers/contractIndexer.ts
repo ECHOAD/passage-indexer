@@ -962,15 +962,13 @@ export class ContractIndexer extends Indexer {
     });
 
     // Update the listing related to the token. Old owner listings are removed.
-    if (dbNft.activeListingId) {
-      await dbTransaction
+    await dbTransaction
         .update(nftListing)
         .set({
-          unlistedBlockHeight: height
+            unlistedBlockHeight: height
         })
-        .where(and(eq(nftListing.nft, dbNft.id),eq(nftListing.owner, dbNft.owner), isNull(nftListing.unlistedBlockHeight)));
-    }
-
+        .where(and(eq(nftListing.nft, dbNft.id), eq(nftListing.owner, dbNft.owner),
+            isNull(nftListing.unlistedBlockHeight)));
 
     // Removed bid if exists.
     const nftBidDb = await dbTransaction.query.nftBid.findFirst({
