@@ -5,7 +5,7 @@ export default {
   out: "./drizzle",
   dialect: "postgresql",
   dbCredentials: {
-    url: 'postgres://postgres:postgres@localhost:5432/passage',
+    url: process.env.DB_URL!,
   },
   introspect: {
     casing: "preserve",
