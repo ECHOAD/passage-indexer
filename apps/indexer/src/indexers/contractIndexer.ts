@@ -555,7 +555,8 @@ export class ContractIndexer extends Indexer {
     if (!collectionAddress) throw new Error(`Collection address not found for nft sale (#${height})`);
 
     const dbCollection = await dbTransaction.query.collection.findFirst({
-      where: (collection, { or, eq }) => or(eq(collection.address, collectionAddress), eq(collection.mintContract, collectionAddress))
+      where: (collection, { or, eq }) => or(eq(collection.address, collectionAddress),
+          eq(collection.mintContract, collectionAddress), eq(collection.marketContract, collectionAddress))
     });
 
     if (!dbCollection) {
@@ -615,7 +616,8 @@ export class ContractIndexer extends Indexer {
     if (!collectionAddress) throw new Error(`Collection address not found for remove ask`);
 
     const dbCollection = await dbTransaction.query.collection.findFirst({
-      where: (collection, { or, eq }) => or(eq(collection.address, collectionAddress), eq(collection.mintContract, collectionAddress))
+      where: (collection, { or, eq }) => or(eq(collection.address, collectionAddress),
+          eq(collection.mintContract, collectionAddress), eq(collection.marketContract, collectionAddress))
     });
 
     if (!dbCollection) {
@@ -913,7 +915,8 @@ export class ContractIndexer extends Indexer {
     await dbTransaction
       .update(nft)
       .set({
-        owner: toOwner
+        owner: toOwner,
+        activeListingId: null
       })
       .where(and(eq(nft.id, dbNft.id)));
   }
