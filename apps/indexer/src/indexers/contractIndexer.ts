@@ -593,7 +593,7 @@ export class ContractIndexer extends Indexer {
 
     if(lastListing){
         await dbTransaction.update(nftListing).set({ unlistedBlockHeight: height }).where(eq(nftListing.id, lastListing.id));
-        console.log("Unlisted last listing", {})
+        console.log("Unlisted last listing", lastListing)
     }
 
     const insertedListing = await dbTransaction
