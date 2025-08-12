@@ -264,27 +264,29 @@ async function insertBlocks(startHeight: number, endHeight: number) {
           data: Buffer.from(msg.value)
         });
 
-        const eventsForMsg = eventsByMsg.get(msgIndex) ?? [];
+        if(msg.typeUrl.startsWith("/cosmwasm")) {
+          const eventsForMsg = eventsByMsg.get(msgIndex) ?? [];
 
-        for (const [eventIndex, ev] of eventsForMsg.entries()) {
-          const eventId = uuid.v4();
-          txsEventsToAdd.push({
-            id: eventId,
-            height: i,
-            txId,
-            msgIndex,
-            index: eventIndex,
-            type: ev.type,
-          });
+          for (const [eventIndex, ev] of eventsForMsg.entries()) {
+            const eventId = uuid.v4();
+            txsEventsToAdd.push({
+              id: eventId,
+              height: i,
+              txId,
+              msgIndex,
+              index: eventIndex,
+              type: ev.type,
+            });
 
-          txsEventAttributesToAdd.push(
-              ...ev.attributes.map((attr, attrIdx) => ({
-                transactionEventId: eventId,
-                index: attrIdx,
-                key: attr.key,
-                value: attr.value ?? null,
-              })),
-          );
+            txsEventAttributesToAdd.push(
+                ...ev.attributes.map((attr, attrIdx) => ({
+                  transactionEventId: eventId,
+                  index: attrIdx,
+                  key: attr.key,
+                  value: attr.value ?? null,
+                })),
+            );
+          }
         }
       }
 
