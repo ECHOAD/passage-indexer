@@ -194,7 +194,7 @@ async function getOrCreateDay(blockDatetime: Date, height: number) {
 }
 
 type LogEntry = {
-  msg_index?: number;
+  msg_index: number;
   events: Array<{ type: string; attributes: Array<{ key: string; value: string }> }>;
 };
 function normalizeLogs(raw: unknown): LogEntry[] {
@@ -249,6 +249,10 @@ async function insertBlocks(startHeight: number, endHeight: number) {
       const txJson = blockResults.txs_results[txIndex];
       const logsByMsg = !txJson.code ? normalizeLogs(txJson.log) : [];
       const eventsByMsg = new Map<number, LogEntry["events"]>();
+
+      for (const log of logsByMsg) {
+        eventsByMsg.set(log.msg_index, log.events);
+      }
 
       for (let msgIndex = 0; msgIndex < msgs.length; ++msgIndex) {
         const msg = msgs[msgIndex];
