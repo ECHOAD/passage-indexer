@@ -320,10 +320,8 @@ CREATE INDEX "collection_min_contract" ON "collection" USING btree ("mint_contra
 CREATE UNIQUE INDEX "nft_collection_token_id" ON "nft" USING btree ("collection","token_id");--> statement-breakpoint
 CREATE INDEX "nft_minted_on_block_height" ON "nft" USING btree ("minted_on_block_height");--> statement-breakpoint
 CREATE INDEX "nft_owner" ON "nft" USING btree ("owner");--> statement-breakpoint
-CREATE INDEX "nft_active_listing_idx" ON "nft" USING btree ("active_listing_id");--> statement-breakpoint
 CREATE INDEX "nft_sale_nft" ON "nft_sale" USING btree ("nft");--> statement-breakpoint
 CREATE UNIQUE INDEX "nft_collection_bid_owner_collection_where_removed_block_height_null" ON "nft_collection_bid" USING btree ("owner","collection") WHERE "nft_collection_bid"."removed_block_height" is null;--> statement-breakpoint
-CREATE UNIQUE INDEX "uniq_open_listing_per_nft" ON "nft_listing" USING btree ("nft") WHERE "nft_listing"."unlisted_block_height" is null;--> statement-breakpoint
 CREATE INDEX "whitelist_collection" ON "whitelist" USING btree ("collection");--> statement-breakpoint
 CREATE INDEX "whitelist_member_address" ON "whitelist_member" USING btree ("address");--> statement-breakpoint
 CREATE INDEX "nft_trait_collection" ON "nft_trait" USING btree ("collection");

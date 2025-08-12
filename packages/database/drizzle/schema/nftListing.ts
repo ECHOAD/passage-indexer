@@ -1,5 +1,5 @@
-import { relations, isNull } from "drizzle-orm";
-import { pgTable, varchar, integer, uuid, numeric, uniqueIndex } from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
+import { pgTable, varchar, integer, uuid, numeric } from "drizzle-orm/pg-core";
 import { nft } from "./nft";
 import { block } from "./block";
 
@@ -20,11 +20,9 @@ export const nftListing = pgTable(
       () => block.height
     ),
   },
-  (table) => ({
-      uniqOpenListingPerNft: uniqueIndex("uniq_open_listing_per_nft")
-          .on(table.nft)
-          .where(isNull(table.unlistedBlockHeight))
-  })
+  (table) => {
+    return {};
+  }
 );
 
 export const nftListingRelations = relations(nftListing, ({ one }) => ({

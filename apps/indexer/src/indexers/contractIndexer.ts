@@ -588,7 +588,8 @@ export class ContractIndexer extends Indexer {
     }
 
     const lastListing = await dbTransaction.query.nftListing.findFirst({
-        where: (nftListing, { and, eq }) => and(eq(nftListing.nft, dbNft.id))
+        where: (nftListing, { and, eq }) => and(eq(nftListing.nft, dbNft.id)),
+        orderBy: (nftListing, { desc }) => desc(nftListing.forSaleBlockHeight)
     });
 
     if(lastListing){

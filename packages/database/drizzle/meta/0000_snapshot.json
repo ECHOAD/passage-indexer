@@ -1667,21 +1667,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "nft_active_listing_idx": {
-          "name": "nft_active_listing_idx",
-          "columns": [
-            {
-              "expression": "active_listing_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
         }
       },
       "foreignKeys": {
@@ -2181,22 +2166,7 @@
         }
       },
       "indexes": {
-        "uniq_open_listing_per_nft": {
-          "name": "uniq_open_listing_per_nft",
-          "columns": [
-            {
-              "expression": "nft",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"nft_listing\".\"unlisted_block_height\" is null",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
+
       },
       "foreignKeys": {
         "nft_listing_nft_nft_id_fk": {
