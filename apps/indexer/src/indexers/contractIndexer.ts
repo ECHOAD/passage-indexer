@@ -66,7 +66,7 @@ import {
   NftSetBidSchema,
   NftTransferSchema
 } from "@src/shared/zod/nftSchema";
-import {getEventAttributeValue, getEventsAttributeValuesGrouped, parseTokenId} from "@src/shared/utils/nftUtils";
+import {getEventAttributeValue, parseTokenId} from "@src/shared/utils/nftUtils";
 import z from "zod";
 
 type ZodHandler<T> = { type: z.ZodType<T>; handler: (data: T) => Promise<void> | void };
@@ -444,61 +444,43 @@ export class ContractIndexer extends Indexer {
   }
 
   private async mintNft(dbTransaction: DbTransaction, txEvents: TransactionEventWithAttributes[], height: number) {
-
-    const eventValues = getEventsAttributeValuesGrouped(txEvents, [{
-      eventType: "wasm",
-      attributeKeys: [{
-          key: "token_id", required: true
-      },{
-          key: "mint_price", required: true
-      }, {
-          key: "_contract_address", required: true
-      }]
-    }])
-
+    const minterOrCollectionAddress = getEventAttributeValue(txEvents, "wasm", "_contract_address");
+    const tokenId = getEventAttributeValue(txEvents, "wasm", "token_id");
+    const normalizedTokenId = tokenId && parseTokenId(tokenId);
     const owner = getEventAttributeValue(txEvents, "coin_spent", "spender");
+    const mintPrice = getEventAttributeValue(txEvents, "wasm", "mint_price");
 
-    for (const eventValue of eventValues) {
+    if (!minterOrCollectionAddress) throw new Error(`Minter or collection address not found (#${height})`);
 
-      console.log(eventValue)
+    const dbCollection = await dbTransaction.query.collection.findFirst({
+      where: (collection, { or, eq }) => or(eq(collection.address, minterOrCollectionAddress), eq(collection.mintContract, minterOrCollectionAddress))
+    });
 
-      const tokenId = eventValue["wasm"]?.token_id;
-      const normalizedTokenId = tokenId && parseTokenId(tokenId);
-      const mintPrice = eventValue["wasm"]?.mint_price;
-      const minterOrCollectionAddress = eventValue["wasm"]?._contract_address;
-
-      if (!minterOrCollectionAddress) throw new Error(`Minter or collection address not found (#${height}) index for token ${normalizedTokenId}`);
-
-      const dbCollection = await dbTransaction.query.collection.findFirst({
-        where: (collection, { or, eq }) => or(eq(collection.address, minterOrCollectionAddress), eq(collection.mintContract, minterOrCollectionAddress))
-      });
-
-      if (!dbCollection) {
-        throw new Error(`Collection not found for mint contract ${minterOrCollectionAddress}`);
-      }
-
-      if (!normalizedTokenId) {
-        throw new Error(`Token id not found for collection ${dbCollection.address}`);
-      }
-
-      if (!mintPrice) {
-        throw new Error(`Mint price not found for token ${normalizedTokenId}`);
-      }
-
-      if (!owner) {
-        throw new Error(`Owner not found for token ${normalizedTokenId}`);
-      }
-
-      await dbTransaction
-          .update(nft)
-          .set({
-            mintedOnBlockHeight: height,
-            mintPrice: mintPrice,
-            mintDenom: dbCollection.unitDenom || "upasg",
-            owner: owner
-          })
-          .where(and(eq(nft.tokenId, normalizedTokenId), eq(nft.collection, dbCollection.address)));
+    if (!dbCollection) {
+      throw new Error(`Collection not found for mint contract ${minterOrCollectionAddress}`);
     }
+
+    if (!normalizedTokenId) {
+      throw new Error(`Token id not found for collection ${dbCollection.address}`);
+    }
+
+    if (!mintPrice) {
+      throw new Error(`Mint price not found for token ${normalizedTokenId}`);
+    }
+
+    if (!owner) {
+      throw new Error(`Owner not found for token ${normalizedTokenId}`);
+    }
+
+    await dbTransaction
+        .update(nft)
+        .set({
+          mintedOnBlockHeight: height,
+          mintPrice: mintPrice,
+          mintDenom: dbCollection.unitDenom || "upasg",
+          owner: owner
+        })
+        .where(and(eq(nft.tokenId, normalizedTokenId), eq(nft.collection, dbCollection.address)));
   }
 
   private async mintToNft(

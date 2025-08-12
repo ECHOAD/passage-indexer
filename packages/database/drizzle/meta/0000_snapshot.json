@@ -1,5 +1,5 @@
 {
-  "id": "682df3c2-7da4-45f7-8326-474144c258a7",
+  "id": "767d2cd7-0efd-4789-b653-01bf4081c907",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -979,6 +979,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "msg_index": {
+          "name": "msg_index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
         "index": {
           "name": "index",
           "type": "integer",
@@ -1734,19 +1740,6 @@
           ],
           "onDelete": "cascade",
           "onUpdate": "cascade"
-        },
-        "nft_active_listing_id_nft_listing_id_fk": {
-          "name": "nft_active_listing_id_nft_listing_id_fk",
-          "tableFrom": "nft",
-          "tableTo": "nft_listing",
-          "columnsFrom": [
-            "active_listing_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -2165,9 +2158,7 @@
           "notNull": false
         }
       },
-      "indexes": {
-
-      },
+      "indexes": {},
       "foreignKeys": {
         "nft_listing_nft_nft_id_fk": {
           "name": "nft_listing_nft_nft_id_fk",

@@ -119,12 +119,13 @@ class StatsProcessor {
               decodeTimer.end();
 
               for (const msg of transaction.messages) {
-                console.log(`Processing message ${msg.type} - Block #${block.height}`);
-
+                console.log(`Processing message ${msg.type} - Block #${block.height} - Index #${msg.index}`);
                 const encodedMessage = decodedTx.body.messages[msg.index].value;
 
+                const msgEvents = transaction.events.filter((x) => x.msgIndex === msg.index);
+
                 await benchmark.measureAsync("processMessage", async () => {
-                  await this.processMessage(msg, encodedMessage, block.height, blockGroupTransaction, transaction.hasProcessingError, transaction.events);
+                  await this.processMessage(msg, encodedMessage, block.height, blockGroupTransaction, transaction.hasProcessingError, msgEvents);
                 });
 
                 if (msg.amount) {

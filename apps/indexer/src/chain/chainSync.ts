@@ -193,6 +193,18 @@ async function getOrCreateDay(blockDatetime: Date, height: number) {
   return newDay;
 }
 
+type LogEntry = {
+  msg_index?: number;
+  events: Array<{ type: string; attributes: Array<{ key: string; value: string }> }>;
+};
+function normalizeLogs(raw: unknown): LogEntry[] {
+  let entries: LogEntry[] = [];
+  if (Array.isArray(raw)) entries = raw as LogEntry[];
+  else if (typeof raw === "string") { try { entries = JSON.parse(raw); } catch {} }
+
+  return entries.map((e, i) => ({ msg_index: e.msg_index ?? i, events: e.events ?? [] }));
+}
+
 async function insertBlocks(startHeight: number, endHeight: number) {
   const blockCount = endHeight - startHeight + 1;
   console.log("Inserting " + blockCount + " blocks into database");
@@ -234,6 +246,10 @@ async function insertBlocks(startHeight: number, endHeight: number) {
       const decodedTx = decodeTxRaw(fromBase64(tx));
       const msgs = decodedTx.body.messages;
 
+      const txJson = blockResults.txs_results[txIndex];
+      const logsByMsg = !txJson.code ? normalizeLogs(txJson.log) : [];
+      const eventsByMsg = new Map<number, LogEntry["events"]>();
+
       for (let msgIndex = 0; msgIndex < msgs.length; ++msgIndex) {
         const msg = msgs[msgIndex];
 
@@ -247,9 +263,30 @@ async function insertBlocks(startHeight: number, endHeight: number) {
           indexInBlock: msgIndexInBlock++,
           data: Buffer.from(msg.value)
         });
-      }
 
-      const txJson = blockResults.txs_results[txIndex];
+        const eventsForMsg = eventsByMsg.get(msgIndex) ?? [];
+
+        for (const [eventIndex, ev] of eventsForMsg.entries()) {
+          const eventId = uuid.v4();
+          txsEventsToAdd.push({
+            id: eventId,
+            height: i,
+            txId,
+            msgIndex,
+            index: eventIndex,
+            type: ev.type,
+          });
+
+          txsEventAttributesToAdd.push(
+              ...ev.attributes.map((attr, attrIdx) => ({
+                transactionEventId: eventId,
+                index: attrIdx,
+                key: attr.key,
+                value: attr.value ?? null,
+              })),
+          );
+        }
+      }
 
       txsToAdd.push({
         id: txId,
@@ -264,28 +301,6 @@ async function insertBlocks(startHeight: number, endHeight: number) {
         gasUsed: parseInt(txJson.gas_used),
         gasWanted: parseInt(txJson.gas_wanted)
       });
-
-      if (msgs.some((x) => x.typeUrl.startsWith("/cosmwasm"))) {
-        for (const [index, event] of blockResults.txs_results[txIndex].events.entries()) {
-          const eventId = uuid.v4();
-          txsEventsToAdd.push({
-            id: eventId,
-            height: i,
-            txId: txId,
-            index: index,
-            type: event.type
-          });
-
-          txsEventAttributesToAdd.push(
-            ...event.attributes.map((attr, i) => ({
-              transactionEventId: eventId,
-              index: i,
-              key: atob(attr.key),
-              value: attr.value ? atob(attr.value) : attr.value
-            }))
-          );
-        }
-      }
     }
 
     const blockDay = await getOrCreateDay(blockDatetime, i);

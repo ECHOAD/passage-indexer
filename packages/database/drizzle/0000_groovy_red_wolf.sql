@@ -86,6 +86,7 @@ CREATE TABLE "transaction_event" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"height" integer NOT NULL,
 	"tx_id" uuid NOT NULL,
+	"msg_index" integer NOT NULL,
 	"index" integer NOT NULL,
 	"type" varchar(255) NOT NULL
 );
@@ -270,7 +271,6 @@ ALTER TABLE "nft" ADD CONSTRAINT "nft_minted_on_block_height_block_height_fk" FO
 ALTER TABLE "nft" ADD CONSTRAINT "nft_airdropped_on_block_height_block_height_fk" FOREIGN KEY ("airdropped_on_block_height") REFERENCES "public"."block"("height") ON DELETE cascade ON UPDATE cascade;--> statement-breakpoint
 ALTER TABLE "nft" ADD CONSTRAINT "nft_migrated_on_block_height_block_height_fk" FOREIGN KEY ("migrated_on_block_height") REFERENCES "public"."block"("height") ON DELETE cascade ON UPDATE cascade;--> statement-breakpoint
 ALTER TABLE "nft" ADD CONSTRAINT "nft_collection_collection_address_fk" FOREIGN KEY ("collection") REFERENCES "public"."collection"("address") ON DELETE cascade ON UPDATE cascade;--> statement-breakpoint
-ALTER TABLE "nft" ADD CONSTRAINT "nft_active_listing_id_nft_listing_id_fk" FOREIGN KEY ("active_listing_id") REFERENCES "public"."nft_listing"("id") ON DELETE set null ON UPDATE cascade;--> statement-breakpoint
 ALTER TABLE "nft_sale" ADD CONSTRAINT "nft_sale_nft_nft_id_fk" FOREIGN KEY ("nft") REFERENCES "public"."nft"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "nft_sale" ADD CONSTRAINT "nft_sale_sale_block_height_block_height_fk" FOREIGN KEY ("sale_block_height") REFERENCES "public"."block"("height") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "nft_bid" ADD CONSTRAINT "nft_bid_nft_nft_id_fk" FOREIGN KEY ("nft") REFERENCES "public"."nft"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint

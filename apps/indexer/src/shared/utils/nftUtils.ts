@@ -26,7 +26,7 @@ type TxEventType =
   | "wasm-refund-bidder";
 export function getEventAttributeValue(events: TransactionEventWithAttributes[], eventType: TxEventType, attributeKey: string) {
     const event = events.find((event) => event.type === eventType);
-    return event?.attributes.find((attr) => attr.key === attributeKey)?.value ?? null;
+    return event?.attributes.find((attr) => attr.key === attributeKey && attr.value)?.value ?? null;
 }
 
 
