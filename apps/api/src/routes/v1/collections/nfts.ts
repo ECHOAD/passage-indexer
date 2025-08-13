@@ -29,6 +29,12 @@ const route = createRoute({
       sort: z.string().optional().openapi({
         description: "Sort order",
         enum: nftSortOptions
+      }),
+      minPrice: z.string().optional().openapi({ description: "Filter by min price" }),
+      maxPrice: z.string().optional().openapi({ description: "Filter by max price" }),
+      traits: z.union([z.string(), z.array(z.string())]).optional().openapi({
+        description:
+            "Repeatable. Format 'traitType:value'. i.e: traits=Background:Blue&traits=Background:Red&traits=Eyes:Laser"
       })
     })
   },
@@ -80,8 +86,27 @@ export default new OpenAPIHono().openapi(route, async (c) => {
   const skip = parseInt(c.req.valid("query").skip);
   const limit = Math.min(maxLimit, parseInt(c.req.valid("query").limit));
   const saleType = c.req.valid("query").saleType;
-  const sort = c.req.valid("query").sort;
+  const minPrice = (c.req.valid("query").minPrice ? Math.max(0, parseInt(c.req.valid("query").minPrice)) : null)
+  const maxPrice = (c.req.valid("query").maxPrice ? Math.max(0, parseInt(c.req.valid("query").maxPrice)) : null)
 
+  const traitsRaw = c.req.valid('query').traits;
+  const traitsPairs =
+      traitsRaw == null
+          ? []
+          : (Array.isArray(traitsRaw) ? traitsRaw : [traitsRaw])
+              .map(s => s.trim())
+              .filter(Boolean)
+              .map(s => {
+                const sep = s.indexOf(":");
+                if (sep === -1) return null;
+                const trait_type = s.slice(0, sep).trim();
+                const trait_value = s.slice(sep + 1).trim();
+                if (!trait_type || !trait_value) return null;
+                return { trait_type, trait_value };
+              })
+              .filter((x): x is { trait_type: string; trait_value: string } => !!x);
+
+  const sort = c.req.valid("query").sort;
   if (sort && !nftSortOptions.includes(sort)) {
     return c.text("Invalid sort option, valid options are: " + nftSortOptions.join(","), 400);
   }
@@ -94,12 +119,16 @@ export default new OpenAPIHono().openapi(route, async (c) => {
     return c.text("Collection not found", 404);
   }
 
+
   const { nfts, totalCount } = await getNftsWithStats({
     collectionAddress,
     saleType,
     sort,
     skip,
-    limit
+    limit,
+    minPrice,
+    maxPrice,
+    traits: traitsPairs
   });
 
   return c.json({

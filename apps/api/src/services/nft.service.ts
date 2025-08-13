@@ -9,14 +9,18 @@ import {
     db,
     desc,
     eq,
-    isNotNull,
     isNull,
     nft,
     nftBid,
     nftListing,
+    nftTrait,
+    aliasedTable as alias,
+    inArray,
+    nftToTrait,
     nftSale, notInArray,
     sql
 } from "database";
+
 import { getLastProcessedISODate } from "./block.service";
 import {IGNORED_COLLECTIONS} from "@src/utils/constants";
 
@@ -87,175 +91,287 @@ export const nftSortOptions = [
   "saleCount30dPercentageChangeDesc"
 ];
 
-export async function getNftsWithStats({
-                                           collectionAddress,
-                                           saleType,
-                                           sort,
-                                           skip,
-                                           limit
-                                       }: {
-    collectionAddress?: string;
-    saleType?: string;
-    sort: string;
-    skip: number;
-    limit: number;
-}) {
-    const inCollection = eq(nft.collection, collectionAddress!).if(!!collectionAddress);
 
-    const hasOpenListingExists = sql<boolean>`
-    EXISTS (
+export async function getNftsWithStats({
+                                         collectionAddress,
+                                         saleType,
+                                         sort,
+                                         skip,
+                                         limit,
+                                         minPrice,
+                                         maxPrice,
+                                         traits
+                                       }: {
+  collectionAddress?: string;
+  saleType?: "FIXED_PRICE" | "NOT_FOR_SALE" | string;
+  sort: string;
+  skip: number;
+  limit: number;
+  minPrice?: number;
+  maxPrice?: number;
+  traits?: {trait_type: string, trait_value: string}[]
+}) {
+  const inCollection =
+      collectionAddress
+          ? eq(nft.collection, collectionAddress)
+          : undefined;
+
+  const hasOpenListingExists = sql<boolean>`
+      EXISTS (
       SELECT 1
       FROM ${nftListing}
       WHERE ${nftListing.nft} = ${nft.id}
-        AND ${nftListing.unlistedBlockHeight} IS NULL
-    )
+      AND ${nftListing.unlistedBlockHeight} IS NULL
+      )
   `;
 
-    const noOpenListingExists = sql<boolean>`NOT ${hasOpenListingExists}`;
+  const noOpenListingExists = sql<boolean>`NOT (${hasOpenListingExists})`;
 
-    const nftFilterFn = and(
-        inCollection,
-        saleType === "FIXED_PRICE" ? hasOpenListingExists : undefined,
-        saleType === "NOT_FOR_SALE" ? noOpenListingExists : undefined
-    );
+  const minPriceCondition =
+      typeof minPrice === "number"
+          ? sql<boolean>`
+                  EXISTS (
+            SELECT 1
+            FROM ${nftListing}
+                  WHERE ${nftListing.nft} = ${nft.id}
+                  AND ${nftListing.unlistedBlockHeight} IS NULL
+                  AND ${nftListing.forSalePrice} >= ${minPrice}
+                  )
+          `
+          : undefined;
 
-    const [{ count: totalCount }] = await db
-        .select({ count: count() })
-        .from(nft)
-        .where(nftFilterFn);
+  const maxPriceCondition =
+      typeof maxPrice === "number"
+          ? sql<boolean>`
+          EXISTS (
+            SELECT 1
+            FROM ${nftListing}
+            WHERE ${nftListing.nft} = ${nft.id}
+              AND ${nftListing.unlistedBlockHeight} IS NULL
+              AND ${nftListing.forSalePrice} <= ${maxPrice}
+          )
+        `
+          : undefined;
 
-    const lastProcessedDate = await getLastProcessedISODate();
+  let traitsCondition: any | undefined;
 
-    const nftsDataSql = db.$with("nfts_data").as(
-        db
-            .select({
-                nftId: nftSale.nft,
-                saleCount: sql<string>`COUNT(*)`.as("sale_count"),
-                saleCount24h: sql<string>`
-          COUNT(*) FILTER (WHERE ${block.datetime} > ${lastProcessedDate}::timestamp - INTERVAL '24 hours')
+  if (traits && traits.length > 0) {
+    const byType = traits.reduce<Record<string, string[]>>((acc, t) => {
+      const k = t.trait_type;
+      if (!acc[k]) acc[k] = [];
+      acc[k].push(t.trait_value);
+      return acc;
+    }, {});
+
+    const t = alias(nftTrait, "t");
+    const nt = alias(nftToTrait, "nt");
+
+    const perTypeExists = Object.entries(byType).map(([type, values]) => {
+      const uniqueValues = Array.from(new Set(values));
+      if (uniqueValues.length === 0) return undefined;
+
+      const sub = db
+          .select({ one: sql`1` })
+          .from(nt)
+          .innerJoin(t, eq(t.id, nt.traitId))
+          .where(and(
+              eq(nt.nftId, nft.id),
+              eq(t.traitType, type),
+              inArray(t.traitValue, uniqueValues),
+              collectionAddress ? eq(t.collection, collectionAddress) : undefined
+          ));
+
+      // EXISTS (subquery)
+      return sql<boolean>`EXISTS (${sub})`;
+    }).filter(Boolean);
+
+    traitsCondition = (perTypeExists.length > 0)
+        ? and(...(perTypeExists as any[]))   // AND entre trait_types distintos
+        : undefined;
+  }
+
+  const nftFilterFn = and(
+      inCollection,
+      saleType === "FIXED_PRICE" ? hasOpenListingExists : undefined,
+      saleType === "NOT_FOR_SALE" ? noOpenListingExists : undefined,
+      minPriceCondition,
+      maxPriceCondition,
+      traitsCondition
+  );
+
+  const [{ count: totalCount }] = await db
+      .select({ count: count() })
+      .from(nft)
+      .where(nftFilterFn);
+
+  const lastProcessedDate = await getLastProcessedISODate();
+
+  const nftsDataSql = db.$with("nfts_data").as(
+      db
+          .select({
+            nftId: nftSale.nft,
+            saleCount: sql<string>`COUNT(*)`.as("sale_count"),
+
+            saleCount24h: sql<string>`
+          COUNT(*) FILTER (
+            WHERE ${block.datetime} > ${lastProcessedDate}::timestamp - INTERVAL '24 hours'
+          )
         `.as("sale_count_24h"),
-                saleCount7d: sql<string>`
-          COUNT(*) FILTER (WHERE ${block.datetime} > ${lastProcessedDate}::timestamp - INTERVAL '7 days')
+
+            saleCount7d: sql<string>`
+          COUNT(*) FILTER (
+            WHERE ${block.datetime} > ${lastProcessedDate}::timestamp - INTERVAL '7 days'
+          )
         `.as("sale_count_7d"),
-                saleCount30d: sql<string>`
-          COUNT(*) FILTER (WHERE ${block.datetime} > ${lastProcessedDate}::timestamp - INTERVAL '30 days')
+
+            saleCount30d: sql<string>`
+          COUNT(*) FILTER (
+            WHERE ${block.datetime} > ${lastProcessedDate}::timestamp - INTERVAL '30 days'
+          )
         `.as("sale_count_30d"),
-                saleCount24hComparison: sql<string>`
+
+            saleCount24hComparison: sql<string>`
           COUNT(*) FILTER (
             WHERE ${block.datetime} >= ${lastProcessedDate}::timestamp - INTERVAL '48 hours'
               AND ${block.datetime} <  ${lastProcessedDate}::timestamp - INTERVAL '24 hours'
           )
         `.as("sale_count_24h_comparison"),
-                saleCount7dComparison: sql<string>`
+
+            saleCount7dComparison: sql<string>`
           COUNT(*) FILTER (
             WHERE ${block.datetime} >= ${lastProcessedDate}::timestamp - INTERVAL '14 days'
               AND ${block.datetime} <  ${lastProcessedDate}::timestamp - INTERVAL '7 days'
           )
         `.as("sale_count_7d_comparison"),
-                saleCount30dComparison: sql<string>`
+
+            saleCount30dComparison: sql<string>`
           COUNT(*) FILTER (
             WHERE ${block.datetime} >= ${lastProcessedDate}::timestamp - INTERVAL '60 days'
               AND ${block.datetime} <  ${lastProcessedDate}::timestamp - INTERVAL '30 days'
           )
-        `.as("sale_count_30d_comparison")
-            })
-            .from(nftSale)
-            .innerJoin(nft, eq(nft.id, nftSale.nft))
-            .innerJoin(block, eq(block.height, nftSale.saleBlockHeight))
-            .where(inCollection) // solo limitamos por colección aquí si aplica
-            .groupBy(nftSale.nft)
-    );
+        `.as("sale_count_30d_comparison"),
+          })
+          .from(nftSale)
+          .innerJoin(nft, eq(nft.id, nftSale.nft))
+          .innerJoin(block, eq(block.height, nftSale.saleBlockHeight))
+          .where(inCollection) // limit stats to the collection if provided
+          .groupBy(nftSale.nft)
+  );
 
-    const nftsStatsSql = db.$with("nfts_stats").as(
-        db
-            .with(nftsDataSql)
-            .select({
-                tokenId: nft.tokenId,
-                owner: nft.owner,
-                collectionAddress: collection.address,
-                collectionName: collection.name,
-                metadata: nft.metadata,
-                createdOnBlockHeight: nft.createdOnBlockHeight,
-                mintedOnBlockHeight: nft.mintedOnBlockHeight,
-                mintPrice: nft.mintPrice,
-                mintDenom: nft.mintDenom,
-                forSalePrice: nftListing.forSalePrice,
-                forSaleDenom: nftListing.forSaleDenom,
-                saleCount: nftsDataSql.saleCount,
-                saleCount24h: nftsDataSql.saleCount24h,
-                saleCount7d: nftsDataSql.saleCount7d,
-                saleCount30d: nftsDataSql.saleCount30d,
-                // (current - prev) / prev * 100
-                saleCount24hPercentageChange: sql<number>`
+  // ---- Final projection with optional listing join for price fields ----
+  const nftsStatsSql = db.$with("nfts_stats").as(
+      db
+          .with(nftsDataSql)
+          .select({
+            tokenId: nft.tokenId,
+            owner: nft.owner,
+            collectionAddress: collection.address,
+            collectionName: collection.name,
+            metadata: nft.metadata,
+            createdOnBlockHeight: nft.createdOnBlockHeight,
+            mintedOnBlockHeight: nft.mintedOnBlockHeight,
+            mintPrice: nft.mintPrice,
+            mintDenom: nft.mintDenom,
+
+            // These come from the (optional) open listing join below
+            forSalePrice: nftListing.forSalePrice,
+            forSaleDenom: nftListing.forSaleDenom,
+
+            saleCount: nftsDataSql.saleCount,
+            saleCount24h: nftsDataSql.saleCount24h,
+            saleCount7d: nftsDataSql.saleCount7d,
+            saleCount30d: nftsDataSql.saleCount30d,
+
+            // Percentage changes (safe cast + divide-by-zero guard)
+            saleCount24hPercentageChange: sql<number>`
           CASE
-            WHEN (${nftsDataSql.saleCount24hComparison}) = 0 THEN NULL
-            ELSE ( (${nftsDataSql.saleCount24h}::numeric - ${nftsDataSql.saleCount24hComparison}::numeric)
-                  / NULLIF(${nftsDataSql.saleCount24hComparison}::numeric, 0) ) * 100
+            WHEN (${nftsDataSql.saleCount24hComparison})::numeric = 0 THEN NULL
+            ELSE (
+              ( (${nftsDataSql.saleCount24h})::numeric - (${nftsDataSql.saleCount24hComparison})::numeric )
+              / NULLIF((${nftsDataSql.saleCount24hComparison})::numeric, 0)
+            ) * 100
           END
         `.as("sale_count_24h_percentage_change"),
-                saleCount7dPercentageChange: sql<number>`
+
+            saleCount7dPercentageChange: sql<number>`
           CASE
-            WHEN (${nftsDataSql.saleCount7dComparison}) = 0 THEN NULL
-            ELSE ( (${nftsDataSql.saleCount7d}::numeric - ${nftsDataSql.saleCount7dComparison}::numeric)
-                  / NULLIF(${nftsDataSql.saleCount7dComparison}::numeric, 0) ) * 100
+            WHEN (${nftsDataSql.saleCount7dComparison})::numeric = 0 THEN NULL
+            ELSE (
+              ( (${nftsDataSql.saleCount7d})::numeric - (${nftsDataSql.saleCount7dComparison})::numeric )
+              / NULLIF((${nftsDataSql.saleCount7dComparison})::numeric, 0)
+            ) * 100
           END
         `.as("sale_count_7d_percentage_change"),
-                saleCount30dPercentageChange: sql<number>`
+
+            saleCount30dPercentageChange: sql<number>`
           CASE
-            WHEN (${nftsDataSql.saleCount30dComparison}) = 0 THEN NULL
-            ELSE ( (${nftsDataSql.saleCount30d}::numeric - ${nftsDataSql.saleCount30dComparison}::numeric)
-                  / NULLIF(${nftsDataSql.saleCount30dComparison}::numeric, 0) ) * 100
+            WHEN (${nftsDataSql.saleCount30dComparison})::numeric = 0 THEN NULL
+            ELSE (
+              ( (${nftsDataSql.saleCount30d})::numeric - (${nftsDataSql.saleCount30dComparison})::numeric )
+              / NULLIF((${nftsDataSql.saleCount30dComparison})::numeric, 0)
+            ) * 100
           END
-        `.as("sale_count_30d_percentage_change")
-            })
-            .from(nft)
-            .innerJoin(collection, eq(collection.address, nft.collection))
-            .leftJoin(
-                nftListing,
-                and(eq(nftListing.nft, nft.id), isNull(nftListing.unlistedBlockHeight))
-            )
-            .leftJoin(nftsDataSql, eq(nft.id, nftsDataSql.nftId))
-            .where(nftFilterFn)
-    );
+        `.as("sale_count_30d_percentage_change"),
+          })
+          .from(nft)
+          .innerJoin(collection, eq(collection.address, nft.collection))
+          // Join ONLY the currently-open listing (if any) so we can project price fields
+          .leftJoin(
+              nftListing,
+              and(eq(nftListing.nft, nft.id), isNull(nftListing.unlistedBlockHeight))
+          )
+          // Apply the same filters as totalCount; they are safe (wrapped in EXISTS)
+          .leftJoin(nftsDataSql, eq(nft.id, nftsDataSql.nftId))
+          .where(nftFilterFn)
+  );
 
+  // Sorting helpers (tokenId numeric vs alpha)
+  const tokenIdNumericAsc = asc(sql`${nftsStatsSql.tokenId}::numeric`);
+  const tokenIdNumericDesc = desc(sql`${nftsStatsSql.tokenId}::numeric`);
+  const tokenIdAlphaAsc = asc(nftsStatsSql.tokenId);
+  const tokenIdAlphaDesc = desc(nftsStatsSql.tokenId);
 
-    const tokenIdNumericAsc = asc(sql`${nftsStatsSql.tokenId}::numeric`);
-    const tokenIdNumericDesc = desc(sql`${nftsStatsSql.tokenId}::numeric`);
-    const tokenIdAlphaAsc = asc(nftsStatsSql.tokenId);
-    const tokenIdAlphaDesc = desc(nftsStatsSql.tokenId);
+  const sortMapping: Record<string, any> = {
+    priceAsc: asc(nftsStatsSql.forSalePrice),
+    priceDesc: desc(nftsStatsSql.forSalePrice),
 
-    const sortMapping: Record<string, any> = {
-        priceAsc: asc(nftsStatsSql.forSalePrice),
-        priceDesc: desc(nftsStatsSql.forSalePrice),
-        tokenIdAsc: tokenIdNumericAsc,
-        tokenIdDesc: tokenIdNumericDesc,
-        tokenIdAlphaAsc,
-        tokenIdAlphaDesc,
-        saleCountAsc: asc(nftsStatsSql.saleCount),
-        saleCountDesc: desc(nftsStatsSql.saleCount),
-        saleCount24hAsc: asc(nftsStatsSql.saleCount24h),
-        saleCount24hDesc: desc(nftsStatsSql.saleCount24h),
-        saleCount7dAsc: asc(nftsStatsSql.saleCount7d),
-        saleCount7dDesc: desc(nftsStatsSql.saleCount7d),
-        saleCount30dAsc: asc(nftsStatsSql.saleCount30d),
-        saleCount30dDesc: desc(nftsStatsSql.saleCount30d),
-        saleCount24hPercentageChangeAsc: asc(nftsStatsSql.saleCount24hPercentageChange),
-        saleCount24hPercentageChangeDesc: desc(nftsStatsSql.saleCount24hPercentageChange),
-        saleCount7dPercentageChangeAsc: asc(nftsStatsSql.saleCount7dPercentageChange),
-        saleCount7dPercentageChangeDesc: desc(nftsStatsSql.saleCount7dPercentageChange),
-        saleCount30dPercentageChangeAsc: asc(nftsStatsSql.saleCount30dPercentageChange),
-        saleCount30dPercentageChangeDesc: desc(nftsStatsSql.saleCount30dPercentageChange)
-    };
+    tokenIdAsc: tokenIdNumericAsc,
+    tokenIdDesc: tokenIdNumericDesc,
+    tokenIdAlphaAsc,
+    tokenIdAlphaDesc,
 
-    const sortFn = sortMapping[sort] || tokenIdNumericAsc;
+    saleCountAsc: asc(nftsStatsSql.saleCount),
+    saleCountDesc: desc(nftsStatsSql.saleCount),
 
-    const nfts = await db
-        .with(nftsStatsSql)
-        .select()
-        .from(nftsStatsSql)
-        .orderBy(sortFn)
-        .offset(skip)
-        .limit(limit);
+    saleCount24hAsc: asc(nftsStatsSql.saleCount24h),
+    saleCount24hDesc: desc(nftsStatsSql.saleCount24h),
 
-    return { nfts, totalCount };
+    saleCount7dAsc: asc(nftsStatsSql.saleCount7d),
+    saleCount7dDesc: desc(nftsStatsSql.saleCount7d),
+
+    saleCount30dAsc: asc(nftsStatsSql.saleCount30d),
+    saleCount30dDesc: desc(nftsStatsSql.saleCount30d),
+
+    saleCount24hPercentageChangeAsc: asc(nftsStatsSql.saleCount24hPercentageChange),
+    saleCount24hPercentageChangeDesc: desc(nftsStatsSql.saleCount24hPercentageChange),
+
+    saleCount7dPercentageChangeAsc: asc(nftsStatsSql.saleCount7dPercentageChange),
+    saleCount7dPercentageChangeDesc: desc(nftsStatsSql.saleCount7dPercentageChange),
+
+    saleCount30dPercentageChangeAsc: asc(nftsStatsSql.saleCount30dPercentageChange),
+    saleCount30dPercentageChangeDesc: desc(nftsStatsSql.saleCount30dPercentageChange),
+  };
+
+  const sortFn = sortMapping[sort] ?? tokenIdNumericAsc;
+
+  // Final page
+  const nfts = await db
+      .with(nftsStatsSql)
+      .select()
+      .from(nftsStatsSql)
+      .orderBy(sortFn)
+      .offset(skip)
+      .limit(limit);
+
+  return { nfts, totalCount };
 }

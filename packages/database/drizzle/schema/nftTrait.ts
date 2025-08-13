@@ -20,6 +20,8 @@ export const nftTrait = pgTable(
   },
   (table) => ({
     collection: index("nft_trait_collection").on(table.collection),
+    ctv: index("nft_trait_collection_type_value").on(table.collection, table.traitType, table.traitValue),
+    tv: index("nft_trait_type_value").on(table.traitType, table.traitValue),
   })
 );
 
@@ -41,6 +43,8 @@ export const nftToTrait = pgTable(
   },
   (t) => ({
     pk: primaryKey({ columns: [t.nftId, t.traitId] }),
+    byNft: index("nft_to_trait_nft_id").on(t.nftId),
+    byTrait: index("nft_to_trait_trait_id").on(t.traitId),
   })
 );
 
