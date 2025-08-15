@@ -1002,9 +1002,13 @@ export class ContractIndexer extends Indexer {
       .where(eq(nft.id, dbNft.id));
   }
 
-  private async insertNftTraits(dbTransaction: DbTransaction, dbNft: Nft, height: number, metadata: any) {
+  private async insertNftTraits(
+      dbTransaction: DbTransaction,
+      dbNft: Nft,
+      height: number,
+      metadata: any
+  ) {
     const _metadata = NftMetadataSchema.safeParse(metadata);
-
     if (!_metadata.success) {
       throw new Error(`Invalid metadata for ${dbNft.id}`);
     }
@@ -1012,62 +1016,84 @@ export class ContractIndexer extends Indexer {
     const { data } = _metadata;
 
     await dbTransaction
-      .update(nft)
-      .set({
-        name: data.name,
-        description: data.description,
-        image: data.image,
-        externalUrl: data.external_url,
-        backgroundColor: data.background_color,
-        animationUrl: data.animation_url,
-        youtubeUrl: data.youtube_url
-      })
-      .where(eq(nft.id, dbNft.id));
+        .update(nft)
+        .set({
+          name: data.name,
+          description: data.description,
+          image: data.image,
+          externalUrl: data.external_url,
+          backgroundColor: data.background_color,
+          animationUrl: data.animation_url,
+          youtubeUrl: data.youtube_url
+        })
+        .where(eq(nft.id, dbNft.id));
 
-    for (const trait of data.attributes) {
+    await dbTransaction
+        .delete(nftToTrait)
+        .where(eq(nftToTrait.nftId, dbNft.id));
+
+
+    type InAttr = {
+      trait_type: string | null | undefined;
+      value: string | number | boolean | null | undefined;
+      display_type?: string | null;
+    };
+
+    const attrs = (data.attributes ?? []) as InAttr[];
+
+    const uniq = new Map<string, InAttr>();
+    for (const a of attrs) {
+      const traitType = (a.trait_type ?? "").toString().trim();
+      const traitValue = a.value === null || a.value === undefined ? "" : String(a.value).trim();
+      const displayType = a.display_type ?? null;
+
+      if (!traitType || traitValue === "") continue;
+
+      const key = `${traitType}::${traitValue}::${displayType ?? "NULL"}`;
+      if (!uniq.has(key)) uniq.set(key, { trait_type: traitType, value: traitValue, display_type: displayType });
+    }
+
+    for (const { trait_type, value, display_type } of uniq.values()) {
+      const filters = [
+        eq(collection.address, dbNft.collection as string),
+        eq(nftTrait.traitType, trait_type!),
+        eq(nftTrait.traitValue, value as string)
+      ];
+
+      const displayFilter =
+          display_type === null || display_type === undefined
+              ? isNull(nftTrait.displayType)
+              : eq(nftTrait.displayType, display_type);
+
       const existingTrait = await dbTransaction
-        .select()
-        .from(nftTrait)
-        .innerJoin(collection, eq(nftTrait.collection, collection.address))
-        .where(
-          and(
-            eq(collection.address, dbNft.collection as string),
-            eq(nftTrait.traitType, trait.trait_type),
-            eq(nftTrait.traitValue, trait.value),
-            eq(nftTrait.displayType, trait.display_type)
-          )
-        );
+          .select({ id: nftTrait.id })
+          .from(nftTrait)
+          .innerJoin(collection, eq(nftTrait.collection, collection.address))
+          .where(and(...filters, displayFilter))
+          .limit(1);
+
+      let traitId: string;
 
       if (existingTrait.length > 0) {
-        const dbNftToTrait = await dbTransaction
-          .select()
-          .from(nftToTrait)
-          .where(and(eq(nftToTrait.nftId, dbNft.id), eq(nftToTrait.traitId, existingTrait[0].nft_trait.id)));
-
-        if (dbNftToTrait.length > 0) {
-          continue;
-        }
-
-        await dbTransaction.insert(nftToTrait).values({
-          nftId: dbNft.id,
-          traitId: existingTrait[0].nft_trait.id
-        });
+        traitId = existingTrait[0].id;
       } else {
-        const [newTrait] = await dbTransaction
-          .insert(nftTrait)
-          .values({
-            collection: dbNft.collection as string,
-            displayType: trait.display_type,
-            traitType: trait.trait_type,
-            traitValue: trait.value
-          })
-          .returning({ id: nftTrait.id });
+        const [inserted] = await dbTransaction
+            .insert(nftTrait)
+            .values({
+              collection: dbNft.collection as string,
+              displayType: display_type ?? null,
+              traitType: trait_type!,
+              traitValue: value as string
+            })
+            .returning({ id: nftTrait.id });
 
-        await dbTransaction.insert(nftToTrait).values({
-          nftId: dbNft.id,
-          traitId: newTrait.id
-        });
+        traitId = inserted.id;
       }
+
+      await dbTransaction.insert(nftToTrait).values({
+        nftId: dbNft.id,
+        traitId
+      });
     }
   }
 
