@@ -669,12 +669,13 @@ export class ContractIndexer extends Indexer {
         getEventAttributeValue([e], "wasm-refund-bidder", "recipient") === owner
     );
 
-    const matchOutcome = getEventAttributeValue(txEvents, "wasm-match-bid", "outcome");
-    const wasTooLow = matchOutcome === "bid-too-low";
+    // Removed temporarily due to bug in the contract (PROBABLY). Founds keeps on the smart_contract
+    // const matchOutcome = getEventAttributeValue(txEvents, "wasm-match-bid", "outcome");
+    // const wasTooLow = matchOutcome === "bid-too-low";
 
     const wasFinalized = txEvents.some((event) => event.type === "wasm-finalize-sale");
 
-    const removedBlockHeight = wasFinalized || wasRefunded || wasTooLow ? height : null;
+    const removedBlockHeight = wasFinalized || wasRefunded ? height : null;
 
     if (wasFinalized) {
       await this.executeNftSale(dbTransaction, txEvents, tokenId, height);
