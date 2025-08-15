@@ -403,10 +403,25 @@ export async function getCollectionTraits(address: string, options: GetTraitsOpt
   if (options.startDate) dateFilters.push(gte(block.datetime, new Date(options.startDate)));
   if (options.endDate)   dateFilters.push(lte(block.datetime, new Date(options.endDate)));
 
-  const nftsWithTraits = await db.query.nftTrait.findMany({
-    where: (table) => and(eq(table.collection, address), options.traitType ? eq(table.traitType, options.traitType) : undefined),
-    columns: { id: true, traitType: true, traitValue: true }
-  });
+  const linkedTraitsRaw = await db
+      .select({
+        id: nftTrait.id,
+        traitType: nftTrait.traitType,
+        traitValue: nftTrait.traitValue,
+      })
+      .from(nftToTrait)
+      .innerJoin(nftTrait, eq(nftTrait.id, nftToTrait.traitId))
+      .innerJoin(nft, eq(nft.id, nftToTrait.nftId))
+      .where(
+          and(
+              eq(nft.collection, address),
+              options.traitType ? eq(nftTrait.traitType, options.traitType) : undefined
+          )
+      );
+
+  const nftsWithTraits = Array.from(
+      new Map(linkedTraitsRaw.map(t => [t.id, t])).values()
+  );
 
   const salesData = await db
       .select({
