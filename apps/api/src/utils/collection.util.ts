@@ -1,8 +1,8 @@
 import { getCollectionStats } from "@src/services/collection.service";
 import { Collection } from "database";
 
-export async function mapCollection(collection: Collection) {
-  const stats = await getCollectionStats(collection.address);
+export async function mapCollection(collection: Collection, statsPeriod?: "24h" | "7d" | "30d") {
+  const stats = await getCollectionStats(collection.address, undefined, statsPeriod );
 
   return {
     address: collection.address,

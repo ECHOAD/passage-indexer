@@ -26,3 +26,26 @@ export function getPrettyTime(timeMs: number): string {
     return `${Math.floor(timeMs / 1_000 / 60 / 60)}h ${Math.floor(timeMs / 1_000 / 60) % 60}m`;
   }
 }
+
+const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
+function toISODateOnly(s: string): Date {
+  const [y, m, d] = s.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0));
+}
+export function normalizeInputToISO(input: string | undefined, kind: "start" | "end"): string | undefined {
+  if (!input) return undefined;
+  if (DATE_ONLY_RE.test(input)) {
+    if (kind === "start") {
+      return toISODateOnly(input).toISOString();
+    } else {
+      const d = toISODateOnly(input);
+      d.setUTCDate(d.getUTCDate() + 1);
+      return d.toISOString();
+    }
+  }
+  const dt = new Date(input);
+  if (isNaN(dt.getTime())) return undefined;
+  return dt.toISOString();
+}
+
+

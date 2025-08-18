@@ -37,37 +37,39 @@ const route = createRoute({
                     unitPrice: z.string().nullable(),
                     unitDenom: z.string().nullable(),
                     nftCount: z.number(),
+                    mintedNftCount: z.number(),
+                    remainingMintCount: z.number(),
                     uniqueOwnerCount: z.number(),
                     floorPrice: z.string().nullable(),
-                    totalSaleCount: z.number(),
-                    totalSaleVolume: z.object({
+
+                    totalSales: z.number(),
+                    totalVolume: z.object({
                       upasg: z.string().nullable(),
                       usd: z.string().nullable()
                     }),
-                    saleCount24h: z.number(),
-                    saleCount24hChangePercentage: z.number(),
-                    saleVolume24h: z.object({
+                    salesInPeriod: z.number(),
+                    salesChangePct: z.number().nullable(),
+                    volumeInPeriod: z.object({
                       upasg: z.string().nullable(),
-                      upasgChangePercentage: z.number().nullable(),
+                      upasgChangePct: z.number().nullable(),
                       usd: z.string().nullable(),
-                      usdChangePercentage: z.number().nullable()
+                      usdChangePct: z.number().nullable()
                     }),
-                    saleCount7d: z.number(),
-                    saleCount7dChangePercentage: z.number(),
-                    saleVolume7d: z.object({
+
+                    totalMints: z.number(),
+                    totalMintVolume: z.object({
                       upasg: z.string().nullable(),
-                      upasgChangePercentage: z.number().nullable(),
-                      usd: z.string().nullable(),
-                      usdChangePercentage: z.number().nullable()
+                      usd: z.string().nullable()
                     }),
-                    saleCount30d: z.number(),
-                    saleCount30dChangePercentage: z.number(),
-                    saleVolume30d: z.object({
+                    mintsInPeriod: z.number(),
+                    mintsChangePct: z.number().nullable(),
+                    mintVolumeInPeriod: z.object({
                       upasg: z.string().nullable(),
-                      upasgChangePercentage: z.number().nullable(),
+                      upasgChangePct: z.number().nullable(),
                       usd: z.string().nullable(),
-                      usdChangePercentage: z.number().nullable()
+                      usdChangePct: z.number().nullable()
                     }),
+
                     listedTokenCount: z.number()
                   })
                 )

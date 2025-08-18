@@ -1,7 +1,7 @@
 import {
   block, day, db, eq, collection, nft, notInArray, nftListing, nftSale,
   and, lte, min, sql, sum, count, countDistinct, gte, nftToTrait, nftTrait,
-  isNull, asc, gt, isNotNull, or
+  isNull, asc, gt, isNotNull, or, aliasedTable as alias
 } from "database";
 import { TraitStats, GetTraitsOptions } from "@src/types/collection";
 import { udenomToDenom } from "@src/utils/math";
@@ -10,7 +10,10 @@ import { mapCollection } from "@src/utils/collection.util";
 import { IGNORED_COLLECTIONS } from "@src/utils/constants";
 
 type MappedCollectionType = Awaited<ReturnType<typeof mapCollection>>;
-const sortOptions: Record<string, (a: MappedCollectionType, b: MappedCollectionType) => number> = {
+
+type Period = "24h" | "7d" | "30d";
+
+const sortOptions: Record<string, (a: MappedCollectionType & PeriodStats, b: MappedCollectionType & PeriodStats) => number> = {
   createdHeightAsc: (a, b) => a.createdHeight - b.createdHeight,
   createdHeightDesc: (a, b) => b.createdHeight - a.createdHeight,
   nftCountAsc: (a, b) => a.nftCount - b.nftCount,
@@ -19,35 +22,26 @@ const sortOptions: Record<string, (a: MappedCollectionType, b: MappedCollectionT
   uniqueOwnerCountDesc: (a, b) => b.uniqueOwnerCount - a.uniqueOwnerCount,
   floorPriceAsc: (a, b) => parseFloat(a.floorPrice || "0") - parseFloat(b.floorPrice || "0"),
   floorPriceDesc: (a, b) => parseFloat(b.floorPrice || "0") - parseFloat(a.floorPrice || "0"),
-  totalSaleCountAsc: (a, b) => a.totalSaleCount - b.totalSaleCount,
-  totalSaleCountDesc: (a, b) => b.totalSaleCount - a.totalSaleCount,
-  totalSaleVolumeUpasgAsc: (a, b) => parseFloat(a.totalSaleVolume.upasg || "0") - parseFloat(b.totalSaleVolume.upasg || "0"),
-  totalSaleVolumeUpasgDesc: (a, b) => parseFloat(b.totalSaleVolume.upasg || "0") - parseFloat(a.totalSaleVolume.upasg || "0"),
-  totalSaleVolumeUsdAsc: (a, b) => parseFloat(a.totalSaleVolume.usd || "0") - parseFloat(b.totalSaleVolume.usd || "0"),
-  totalSaleVolumeUsdDesc: (a, b) => parseFloat(b.totalSaleVolume.usd || "0") - parseFloat(a.totalSaleVolume.usd || "0"),
-  saleCount24hAsc: (a, b) => a.saleCount24h - b.saleCount24h,
-  saleCount24hDesc: (a, b) => b.saleCount24h - a.saleCount24h,
-  saleVolume24hUpasgAsc: (a, b) => parseFloat(a.saleVolume24h.upasg || "0") - parseFloat(b.saleVolume24h.upasg || "0"),
-  saleVolume24hUpasgDesc: (a, b) => parseFloat(b.saleVolume24h.upasg || "0") - parseFloat(a.saleVolume24h.upasg || "0"),
-  saleVolume24hUsdAsc: (a, b) => parseFloat(a.saleVolume24h.usd || "0") - parseFloat(b.saleVolume24h.usd || "0"),
-  saleVolume24hUsdDesc: (a, b) => parseFloat(b.saleVolume24h.usd || "0") - parseFloat(a.saleVolume24h.usd || "0"),
-  saleCount7dAsc: (a, b) => a.saleCount7d - b.saleCount7d,
-  saleCount7dDesc: (a, b) => b.saleCount7d - a.saleCount7d,
-  saleVolume7dUpasgAsc: (a, b) => parseFloat(a.saleVolume7d.upasg || "0") - parseFloat(b.saleVolume7d.upasg || "0"),
-  saleVolume7dUpasgDesc: (a, b) => parseFloat(b.saleVolume7d.upasg || "0") - parseFloat(a.saleVolume7d.upasg || "0"),
-  saleVolume7dUsdAsc: (a, b) => parseFloat(a.saleVolume7d.usd || "0") - parseFloat(b.saleVolume7d.usd || "0"),
-  saleVolume7dUsdDesc: (a, b) => parseFloat(b.saleVolume7d.usd || "0") - parseFloat(a.saleVolume7d.usd || "0"),
-  saleCount30dAsc: (a, b) => a.saleCount30d - b.saleCount30d,
-  saleCount30dDesc: (a, b) => b.saleCount30d - a.saleCount30d,
-  saleVolume30dUpasgAsc: (a, b) => parseFloat(a.saleVolume30d.upasg || "0") - parseFloat(b.saleVolume30d.upasg || "0"),
-  saleVolume30dUpasgDesc: (a, b) => parseFloat(b.saleVolume30d.upasg || "0") - parseFloat(a.saleVolume30d.upasg || "0"),
-  saleVolume30dUsdAsc: (a, b) => parseFloat(a.saleVolume30d.usd || "0") - parseFloat(b.saleVolume30d.usd || "0"),
-  saleVolume30dUsdDesc: (a, b) => parseFloat(b.saleVolume30d.usd || "0") - parseFloat(a.saleVolume30d.usd || "0"),
+
+  totalSalesAsc: (a, b) => (a.totalSales ?? 0) - (b.totalSales ?? 0),
+  totalSalesDesc: (a, b) => (b.totalSales ?? 0) - (a.totalSales ?? 0),
+  totalSaleVolumeUpasgAsc: (a, b) => parseFloat(a.totalVolume.upasg || "0") - parseFloat(b.totalVolume.upasg || "0"),
+  totalSaleVolumeUpasgDesc: (a, b) => parseFloat(b.totalVolume.upasg || "0") - parseFloat(a.totalVolume.upasg || "0"),
+  totalSaleVolumeUsdAsc: (a, b) => parseFloat(a.totalVolume.usd || "0") - parseFloat(b.totalVolume.usd || "0"),
+  totalSaleVolumeUsdDesc: (a, b) => parseFloat(b.totalVolume.usd || "0") - parseFloat(a.totalVolume.usd || "0"),
+
+  salesInPeriodAsc: (a, b) => (a.salesInPeriod ?? 0) - (b.salesInPeriod ?? 0),
+  salesInPeriodDesc: (a, b) => (b.salesInPeriod ?? 0) - (a.salesInPeriod ?? 0),
+  volumeInPeriodUpasgAsc: (a, b) => parseFloat(a.volumeInPeriod.upasg || "0") - parseFloat(b.volumeInPeriod.upasg || "0"),
+  volumeInPeriodUpasgDesc: (a, b) => parseFloat(b.volumeInPeriod.upasg || "0") - parseFloat(a.volumeInPeriod.upasg || "0"),
+  volumeInPeriodUsdAsc: (a, b) => parseFloat(a.volumeInPeriod.usd || "0") - parseFloat(b.volumeInPeriod.usd || "0"),
+  volumeInPeriodUsdDesc: (a, b) => parseFloat(b.volumeInPeriod.usd || "0") - parseFloat(a.volumeInPeriod.usd || "0"),
+
   listedTokenCountAsc: (a, b) => a.listedTokenCount - b.listedTokenCount,
   listedTokenCountDesc: (a, b) => b.listedTokenCount - a.listedTokenCount
 };
 
-export type MintStatus = "LIVE" | "COMPLETED" | "NOT_STARTED" | "NOT_MINTABLE" | "ALL"
+export type MintStatus = "LIVE" | "COMPLETED" | "NOT_STARTED" | "NOT_MINTABLE" | "ALL";
 export const sortOptionsKeys = Object.keys(sortOptions) as (keyof typeof sortOptions)[];
 export const mintStatusKeys: MintStatus[] = ["LIVE", "COMPLETED", "NOT_STARTED", "NOT_MINTABLE", "ALL"];
 export type SortOptions = keyof typeof sortOptions;
@@ -57,8 +51,40 @@ export interface GetCollectionsParams {
   limit?: number;
   sort?: SortOptions;
   mintStatus?: string;
+  period?: Period; // "24h" | "7d" | "30d"
 }
 
+type PeriodSql = { cur: any; prevFrom: any; prevTo: any };
+function windowSql(period: Period): PeriodSql {
+  if (period === "24h") return { cur: sql`INTERVAL '24 hours'`, prevFrom: sql`INTERVAL '48 hours'`, prevTo: sql`INTERVAL '24 hours'` };
+  if (period === "30d") return { cur: sql`INTERVAL '30 days'`, prevFrom: sql`INTERVAL '60 days'`, prevTo: sql`INTERVAL '30 days'` };
+  return { cur: sql`INTERVAL '7 days'`, prevFrom: sql`INTERVAL '14 days'`, prevTo: sql`INTERVAL '7 days'` };
+}
+
+type PeriodStats = {
+  // sales
+  totalSales: number;
+  totalVolume: { upasg: string | null; usd: string | null };
+  salesInPeriod: number;
+  salesChangePct: number | null;
+  volumeInPeriod: {
+    upasg: string | null;
+    upasgChangePct: number | null;
+    usd: string | null;
+    usdChangePct: number | null;
+  };
+  // mints
+  totalMints: number;
+  totalMintVolume: { upasg: string | null; usd: string | null };
+  mintsInPeriod: number;
+  mintsChangePct: number | null;
+  mintVolumeInPeriod: {
+    upasg: string | null;
+    upasgChangePct: number | null;
+    usd: string | null;
+    usdChangePct: number | null;
+  };
+};
 
 export async function getCollections(filter: GetCollectionsParams) {
   const nftAgg = db
@@ -122,7 +148,6 @@ export async function getCollections(filter: GetCollectionsParams) {
         tradingFeeBps: collection.tradingFeeBps,
         minPrice: collection.minPrice,
 
-        // agregados
         nftCount: nftAgg.nftCount,
         mintedNftCount: nftAgg.mintedNftCount,
         migratedNftCount: nftAgg.migratedNftCount,
@@ -132,7 +157,7 @@ export async function getCollections(filter: GetCollectionsParams) {
         listedTokenCount: listAgg.listedTokenCount,
       })
       .from(collection)
-      .innerJoin(nftAgg, eq(collection.address, nftAgg.address)) // <= esto asegura "con NFTs"
+      .innerJoin(nftAgg, eq(collection.address, nftAgg.address))
       .leftJoin(listAgg, eq(collection.address, listAgg.address));
 
   const sub = base.as("sub");
@@ -188,22 +213,22 @@ export async function getCollections(filter: GetCollectionsParams) {
       .offset(skip)
       .limit(limit);
 
+  const period = filter.period ?? "7d";
+
   const mapped = await Promise.all(
       paginated.map(async (col: any) => {
         const baseMapped = await mapCollection(col);
-
-        const sales = await getSaleAndVolumeStats(col.address);
-
+        const stats = await getSaleAndVolumeStats(col.address, period);
         return {
           ...baseMapped,
-          ...sales,
+          ...stats,
           nftCount: Number(col.nftCount) ?? 0,
           uniqueOwnerCount: Number(col.uniqueOwnerCount) ?? 0,
           floorPrice: col.floorPrice ?? null,
           mintedNftCount: Number(col.mintedNftCount) ?? 0,
           remainingMintCount: Number(col.availableToMintCount) ?? 0,
           listedTokenCount: Number(col.listedTokenCount) ?? 0,
-        };
+        } as MappedCollectionType & PeriodStats;
       })
   );
 
@@ -227,7 +252,8 @@ export async function getCollectionStats(
       mintedNftCount?: number;
       remainingMintCount?: number;
       listedTokenCount?: number;
-    }
+    },
+    period: Period = "7d"
 ) {
   const [
     nftCount,
@@ -241,7 +267,7 @@ export async function getCollectionStats(
     pre?.nftCount ?? getNftCount(collectionAddress),
     pre?.uniqueOwnerCount ?? getUniqueOwnerCount(collectionAddress),
     pre?.floorPrice ?? getFloorPrice(collectionAddress),
-    getSaleAndVolumeStats(collectionAddress),
+    getSaleAndVolumeStats(collectionAddress, period),
     pre?.listedTokenCount ?? getListedTokenCount(collectionAddress),
     pre?.mintedNftCount ?? getMintedNftCount(collectionAddress),
     pre?.remainingMintCount ?? getRemainingMintCount(collectionAddress),
@@ -258,8 +284,7 @@ export async function getCollectionStats(
   };
 }
 
-
-async function getFloorPrice(collectionAddress: string) {
+export async function getFloorPrice(collectionAddress: string) {
   const [{ floorPrice }] = await db
       .select({ floorPrice: min(nftListing.forSalePrice) })
       .from(nftListing)
@@ -288,7 +313,6 @@ async function getMintedNftCount(collectionAddress: string) {
       .where(and(eq(nft.collection, collectionAddress), isNotNull(nft.mintedOnBlockHeight)));
   return nftCount;
 }
-
 
 async function getRemainingMintCount(collectionAddress: string) {
   const nftCount = await getNftCount(collectionAddress);
@@ -322,34 +346,98 @@ async function getUniqueOwnerCount(collectionAddress: string) {
   return uniqueOwnerCount;
 }
 
-async function getSaleAndVolumeStats(collectionAddress: string | undefined) {
+async function getSaleAndVolumeStats(collectionAddress: string | undefined, period: Period): Promise<PeriodStats> {
   const lastProcessedDate = await getLastProcessedISODate();
+  const w = windowSql(period);
+
   const [results] = await db
       .select({
-        totalSaleCount: count(),
-        totalSaleVolumeUPasg: sum(nftSale.salePrice),
-        totalSaleVolumeUSD: sum(sql`${nftSale.salePrice} * ${day.tokenPrice} / 1000000`),
-        saleCount24h: sql`COUNT(*) FILTER (WHERE ${block.datetime} >= ${lastProcessedDate}::timestamp - INTERVAL '24 hours')`.mapWith(Number),
-        saleCount7d: sql`COUNT(*) FILTER (WHERE ${block.datetime} >= ${lastProcessedDate}::timestamp - INTERVAL '7 days')`.mapWith(Number),
-        saleCount30d: sql`COUNT(*) FILTER (WHERE ${block.datetime} >= ${lastProcessedDate}::timestamp - INTERVAL '30 days')`.mapWith(Number),
-        saleVolume24hUPasg: sql<string>`SUM(${nftSale.salePrice}) FILTER (WHERE ${block.datetime} >= ${lastProcessedDate}::timestamp - INTERVAL '24 hours')`,
-        saleVolume7dUPasg: sql<string>`SUM(${nftSale.salePrice}) FILTER (WHERE ${block.datetime} >= ${lastProcessedDate}::timestamp - INTERVAL '7 days')`,
-        saleVolume30dUPasg: sql<string>`SUM(${nftSale.salePrice}) FILTER (WHERE ${block.datetime} >= ${lastProcessedDate}::timestamp - INTERVAL '30 days')`,
-        saleVolume24hUSD: sql<number>`SUM(${nftSale.salePrice} * ${day.tokenPrice} / 1000000) FILTER (WHERE ${block.datetime} >= ${lastProcessedDate}::timestamp - INTERVAL '24 hours')`,
-        saleVolume7dUSD: sql<number>`SUM(${nftSale.salePrice} * ${day.tokenPrice} / 1000000) FILTER (WHERE ${block.datetime} >= ${lastProcessedDate}::timestamp - INTERVAL '7 days')`,
-        saleVolume30dUSD: sql<number>`SUM(${nftSale.salePrice} * ${day.tokenPrice} / 1000000) FILTER (WHERE ${block.datetime} >= ${lastProcessedDate}::timestamp - INTERVAL '30 days')`,
-        saleCount24hComparison:
-            sql`COUNT(*) FILTER (WHERE ${block.datetime} >= ${lastProcessedDate}::timestamp - INTERVAL '48 hours' AND ${block.datetime} < ${lastProcessedDate}::timestamp - INTERVAL '24 hours')`.mapWith(Number),
-        saleCount7dComparison:
-            sql`COUNT(*) FILTER (WHERE ${block.datetime} >= ${lastProcessedDate}::timestamp - INTERVAL '14 days' AND ${block.datetime} < ${lastProcessedDate}::timestamp - INTERVAL '7 days')`.mapWith(Number),
-        saleCount30dComparison:
-            sql`COUNT(*) FILTER (WHERE ${block.datetime} >= ${lastProcessedDate}::timestamp - INTERVAL '60 days' AND ${block.datetime} < ${lastProcessedDate}::timestamp - INTERVAL '30 days')`.mapWith(Number),
-        saleVolume24hUPasgComparison: sql<string>`SUM(${nftSale.salePrice}) FILTER (WHERE ${block.datetime} >= ${lastProcessedDate}::timestamp - INTERVAL '48 hours' AND ${block.datetime} < ${lastProcessedDate}::timestamp - INTERVAL '24 hours')`,
-        saleVolume7dUPasgComparison: sql<string>`SUM(${nftSale.salePrice}) FILTER (WHERE ${block.datetime} >= ${lastProcessedDate}::timestamp - INTERVAL '14 days' AND ${block.datetime} < ${lastProcessedDate}::timestamp - INTERVAL '7 days')`,
-        saleVolume30dUPasgComparison: sql<string>`SUM(${nftSale.salePrice}) FILTER (WHERE ${block.datetime} >= ${lastProcessedDate}::timestamp - INTERVAL '60 days' AND ${block.datetime} < ${lastProcessedDate}::timestamp - INTERVAL '30 days')`,
-        saleVolume24hUSDComparison: sql<number>`SUM(${nftSale.salePrice} * ${day.tokenPrice} / 1000000) FILTER (WHERE ${block.datetime} >= ${lastProcessedDate}::timestamp - INTERVAL '48 hours' AND ${block.datetime} < ${lastProcessedDate}::timestamp - INTERVAL '24 hours')`,
-        saleVolume7dUSDComparison: sql<number>`SUM(${nftSale.salePrice} * ${day.tokenPrice} / 1000000) FILTER (WHERE ${block.datetime} >= ${lastProcessedDate}::timestamp - INTERVAL '14 days' AND ${block.datetime} < ${lastProcessedDate}::timestamp - INTERVAL '7 days')`,
-        saleVolume30dUSDComparison: sql<number>`SUM(${nftSale.salePrice} * ${day.tokenPrice} / 1000000) FILTER (WHERE ${block.datetime} >= ${lastProcessedDate}::timestamp - INTERVAL '60 days' AND ${block.datetime} < ${lastProcessedDate}::timestamp - INTERVAL '30 days')`
+        // Sales aggregates
+        totalSales: count(),
+        totalVolumeUpasg: sum(nftSale.salePrice),
+        totalVolumeUsd: sum(sql`${nftSale.salePrice} * ${day.tokenPrice} / 1000000`),
+
+        salesInPeriod: sql`COUNT(*) FILTER (WHERE ${block.datetime} >= ${lastProcessedDate}::timestamp - ${w.cur})`.mapWith(Number),
+        salesPrevPeriod: sql`COUNT(*) FILTER (WHERE ${block.datetime} >= ${lastProcessedDate}::timestamp - ${w.prevFrom} AND ${block.datetime} < ${lastProcessedDate}::timestamp - ${w.prevTo})`.mapWith(Number),
+
+        volumeInPeriodUpasg: sql<string>`SUM(${nftSale.salePrice}) FILTER (WHERE ${block.datetime} >= ${lastProcessedDate}::timestamp - ${w.cur})`,
+        volumePrevPeriodUpasg: sql<string>`SUM(${nftSale.salePrice}) FILTER (WHERE ${block.datetime} >= ${lastProcessedDate}::timestamp - ${w.prevFrom} AND ${block.datetime} < ${lastProcessedDate}::timestamp - ${w.prevTo})`,
+
+        volumeInPeriodUsd: sql<number>`SUM(${nftSale.salePrice} * ${day.tokenPrice} / 1000000) FILTER (WHERE ${block.datetime} >= ${lastProcessedDate}::timestamp - ${w.cur})`,
+        volumePrevPeriodUsd: sql<number>`SUM(${nftSale.salePrice} * ${day.tokenPrice} / 1000000) FILTER (WHERE ${block.datetime} >= ${lastProcessedDate}::timestamp - ${w.prevFrom} AND ${block.datetime} < ${lastProcessedDate}::timestamp - ${w.prevTo})`,
+
+        // Mint aggregates (scalar subqueries with aliases to avoid row multiplication)
+        totalMints: sql<number>`
+        (SELECT COUNT(*) FROM ${nft}
+         WHERE ${nft.collection} = ${collectionAddress} AND ${nft.mintedOnBlockHeight} IS NOT NULL)
+      `,
+        totalMintVolumeUpasg: sql<string>`
+        (SELECT SUM(${nft.mintPrice}) FROM ${nft}
+         WHERE ${nft.collection} = ${collectionAddress} AND ${nft.mintedOnBlockHeight} IS NOT NULL)
+      `,
+        totalMintVolumeUsd: sql<number>`
+        (SELECT SUM(${nft.mintPrice} * ${day.tokenPrice} / 1000000)
+           FROM ${nft}
+           INNER JOIN ${block} ON ${block.height} = ${nft.mintedOnBlockHeight}
+           INNER JOIN ${day} ON ${day.id} = ${block.dayId}
+          WHERE ${nft.collection} = ${collectionAddress} AND ${nft.mintedOnBlockHeight} IS NOT NULL)
+      `,
+
+        mintsInPeriod: sql<number>`
+        (SELECT COUNT(*)
+           FROM ${nft}
+           INNER JOIN ${block} ON ${block.height} = ${nft.mintedOnBlockHeight}
+          WHERE ${nft.collection} = ${collectionAddress}
+            AND ${nft.mintedOnBlockHeight} IS NOT NULL
+            AND ${block.datetime} >= ${lastProcessedDate}::timestamp - ${w.cur})
+      `,
+        mintsPrevPeriod: sql<number>`
+        (SELECT COUNT(*)
+           FROM ${nft}
+           INNER JOIN ${block} ON ${block.height} = ${nft.mintedOnBlockHeight}
+          WHERE ${nft.collection} = ${collectionAddress}
+            AND ${nft.mintedOnBlockHeight} IS NOT NULL
+            AND ${block.datetime} >= ${lastProcessedDate}::timestamp - ${w.prevFrom}
+            AND ${block.datetime} <  ${lastProcessedDate}::timestamp - ${w.prevTo})
+      `,
+
+        mintVolumeInPeriodUpasg: sql<string>`
+        (SELECT SUM(${nft.mintPrice})
+           FROM ${nft}
+           INNER JOIN ${block} ON ${block.height} = ${nft.mintedOnBlockHeight}
+          WHERE ${nft.collection} = ${collectionAddress}
+            AND ${nft.mintedOnBlockHeight} IS NOT NULL
+            AND ${block.datetime} >= ${lastProcessedDate}::timestamp - ${w.cur})
+      `,
+        mintVolumePrevPeriodUpasg: sql<string>`
+        (SELECT SUM(${nft.mintPrice})
+           FROM ${nft}
+           INNER JOIN ${block} ON ${block.height} = ${nft.mintedOnBlockHeight}
+          WHERE ${nft.collection} = ${collectionAddress}
+            AND ${nft.mintedOnBlockHeight} IS NOT NULL
+            AND ${block.datetime} >= ${lastProcessedDate}::timestamp - ${w.prevFrom}
+            AND ${block.datetime} <  ${lastProcessedDate}::timestamp - ${w.prevTo})
+      `,
+
+        mintVolumeInPeriodUsd: sql<number>`
+        (SELECT SUM(${nft.mintPrice} * ${day.tokenPrice} / 1000000)
+           FROM ${nft}
+           INNER JOIN ${block} ON ${block.height} = ${nft.mintedOnBlockHeight}
+           INNER JOIN ${day} ON ${day.id} = ${block.dayId}
+          WHERE ${nft.collection} = ${collectionAddress}
+            AND ${nft.mintedOnBlockHeight} IS NOT NULL
+            AND ${block.datetime} >= ${lastProcessedDate}::timestamp - ${w.cur})
+      `,
+        mintVolumePrevPeriodUsd: sql<number>`
+        (SELECT SUM(${nft.mintPrice} * ${day.tokenPrice} / 1000000)
+           FROM ${nft}
+           INNER JOIN ${block} ON ${block.height} = ${nft.mintedOnBlockHeight}
+           INNER JOIN ${day} ON ${day.id} = ${block.dayId}
+          WHERE ${nft.collection} = ${collectionAddress}
+            AND ${nft.mintedOnBlockHeight} IS NOT NULL
+            AND ${block.datetime} >= ${lastProcessedDate}::timestamp - ${w.prevFrom}
+            AND ${block.datetime} <  ${lastProcessedDate}::timestamp - ${w.prevTo})
+      `,
       })
       .from(nftSale)
       .innerJoin(nft, eq(nftSale.nft, nft.id))
@@ -357,154 +445,195 @@ async function getSaleAndVolumeStats(collectionAddress: string | undefined) {
       .innerJoin(day, eq(block.dayId, day.id))
       .where(eq(nft.collection, collectionAddress));
 
+  const salesChangePct = calcChangePct(results.salesInPeriod ?? 0, results.salesPrevPeriod ?? 0);
+  const upasgChangePct = calcChangePct(parseFloat(results.volumeInPeriodUpasg ?? "0"), parseFloat(results.volumePrevPeriodUpasg ?? "0"));
+  const usdChangePct = calcChangePct(results.volumeInPeriodUsd ?? 0, results.volumePrevPeriodUsd ?? 0);
+
+  const mintsChangePct = calcChangePct(results.mintsInPeriod ?? 0, results.mintsPrevPeriod ?? 0);
+  const mintUpasgChangePct = calcChangePct(parseFloat(results.mintVolumeInPeriodUpasg ?? "0"), parseFloat(results.mintVolumePrevPeriodUpasg ?? "0"));
+  const mintUsdChangePct = calcChangePct(results.mintVolumeInPeriodUsd ?? 0, results.mintVolumePrevPeriodUsd ?? 0);
+
   return {
-    totalSaleCount: results.totalSaleCount,
-    totalSaleVolume: { upasg: results.totalSaleVolumeUPasg, usd: results.totalSaleVolumeUSD },
-    saleCount24h: results.saleCount24h,
-    saleCount24hChangePercentage: calculateChangePercentage(results.saleCount24h, results.saleCount24hComparison),
-    saleVolume24h: {
-      upasg: results.saleVolume24hUPasg,
-      upasgChangePercentage: calculateChangePercentage(parseFloat(results.saleVolume24hUPasg), parseFloat(results.saleVolume24hUPasgComparison)),
-      usd: results.saleVolume24hUSD?.toString(),
-      usdChangePercentage: calculateChangePercentage(results.saleVolume24hUSD, results.saleVolume24hUSDComparison)
+    // sales
+    totalSales: results.totalSales ?? 0,
+    totalVolume: {
+      upasg: results.totalVolumeUpasg?.toString() ?? "0",
+      usd: results.totalVolumeUsd?.toString() ?? "0",
     },
-    saleCount7d: results.saleCount7d,
-    saleCount7dChangePercentage: calculateChangePercentage(results.saleCount7d, results.saleCount7dComparison),
-    saleVolume7d: {
-      upasg: results.saleVolume7dUPasg,
-      upasgChangePercentage: calculateChangePercentage(parseFloat(results.saleVolume7dUPasg), parseFloat(results.saleVolume7dUPasgComparison)),
-      usd: results.saleVolume7dUSD?.toString(),
-      usdChangePercentage: calculateChangePercentage(results.saleVolume7dUSD, results.saleVolume7dUSDComparison)
+    salesInPeriod: results.salesInPeriod ?? 0,
+    salesChangePct,
+    volumeInPeriod: {
+      upasg: results.volumeInPeriodUpasg ?? "0",
+      upasgChangePct: upasgChangePct,
+      usd: (results.volumeInPeriodUsd ?? 0)?.toString(),
+      usdChangePct: usdChangePct
     },
-    saleCount30d: results.saleCount30d,
-    saleCount30dChangePercentage: calculateChangePercentage(results.saleCount30d, results.saleCount30dComparison),
-    saleVolume30d: {
-      upasg: results.saleVolume30dUPasg,
-      upasgChangePercentage: calculateChangePercentage(parseFloat(results.saleVolume30dUPasg), parseFloat(results.saleVolume30dUPasgComparison)),
-      usd: results.saleVolume30dUSD?.toString(),
-      usdChangePercentage: calculateChangePercentage(results.saleVolume30dUSD, results.saleVolume30dUSDComparison)
+    // mints
+    totalMints: results.totalMints ?? 0,
+    totalMintVolume: {
+      upasg: results.totalMintVolumeUpasg?.toString() ?? "0",
+      usd: (results.totalMintVolumeUsd ?? 0)?.toString()
+    },
+    mintsInPeriod: results.mintsInPeriod ?? 0,
+    mintsChangePct,
+    mintVolumeInPeriod: {
+      upasg: results.mintVolumeInPeriodUpasg ?? "0",
+      upasgChangePct: mintUpasgChangePct,
+      usd: (results.mintVolumeInPeriodUsd ?? 0)?.toString(),
+      usdChangePct: mintUsdChangePct
     }
   };
 }
 
-function calculateChangePercentage(current: number, previous: number) {
-  if (previous === 0) return null;
+function calcChangePct(current: number, previous: number) {
+  if (!previous || previous === 0) return null;
   return ((current - previous) / previous) * 100;
 }
 
+type TraitPeriodRow = {
+  traitType: string;
+  traitValue: string;
 
-export async function getCollectionTraits(address: string, options: GetTraitsOptions): Promise<TraitStats[]> {
-  const collectionRow = await db.query.collection.findFirst({
-    where: (table) => eq(table.address, address)
+  totalSales: number;
+  totalVolumeUpasg: string | null;
+  totalVolumeUsd: string | null;
+
+  salesInPeriod: number;
+  salesPrevPeriod: number | null;
+
+  volumeInPeriodUpasg: string | null;
+  volumePrevPeriodUpasg: string | null;
+
+  volumeInPeriodUsd: number | null;
+  volumePrevPeriodUsd: number | null;
+};
+
+export interface TraitPeriodStats {
+  traitType: string;
+  traitValue: string;
+  totalSales: number;
+  totalVolume: { upasg: string | null; usd: string | null };
+  salesInPeriod: number;
+  salesChangePct: number | null;
+  volumeInPeriod: {
+    upasg: string | null;
+    upasgChangePct: number | null;
+    usd: string | null;
+    usdChangePct: number | null;
+  };
+}
+
+function windowFromRange(startISO: string, endISO: string) {
+  const start = new Date(startISO);
+  const end = new Date(endISO);
+  if (isNaN(start.getTime()) || isNaN(end.getTime()) || start >= end) {
+    throw new Error("Invalid date range");
+  }
+  const lenMs = end.getTime() - start.getTime();
+  const prevFrom = new Date(start.getTime() - lenMs);
+  const prevTo = start;
+
+  // ✅ devolver strings
+  return {
+    curFrom: start.toISOString(),
+    curTo: end.toISOString(),
+    prevFrom: prevFrom.toISOString(),
+    prevTo: prevTo.toISOString(),
+  };
+}
+
+
+export async function getCollectionTraits(
+    address: string,
+    options: {
+      traitType?: string;
+      sortBy?: "top" | "trending";
+      startDate?: string;
+      endDate?: string;
+    } = {}
+): Promise<TraitPeriodStats[]> {
+  const col = await db.query.collection.findFirst({
+    where: (t) => eq(t.address, address),
   });
-  if (!collectionRow) throw new Error("Collection not found");
+  if (!col) throw new Error("Collection not found");
 
-  const dateFilters = [];
-  if (options.startDate) dateFilters.push(gte(block.datetime, new Date(options.startDate)));
-  if (options.endDate)   dateFilters.push(lte(block.datetime, new Date(options.endDate)));
+  if (!options.startDate || !options.endDate) {
+    throw new Error("startDate and endDate are required");
+  }
 
-  const linkedTraitsRaw = await db
+  const { curFrom, curTo, prevFrom, prevTo } = windowFromRange(options.startDate, options.endDate);
+
+  const rows = await db
       .select({
-        id: nftTrait.id,
         traitType: nftTrait.traitType,
         traitValue: nftTrait.traitValue,
+
+        totalSales: count(),
+        totalVolumeUpasg: sum(nftSale.salePrice),
+        totalVolumeUsd: sum(sql`${nftSale.salePrice} * ${day.tokenPrice} / 1000000`),
+
+        // Ventana actual
+        salesInPeriod: sql`COUNT(*) FILTER (WHERE ${block.datetime} >= ${curFrom} AND ${block.datetime} < ${curTo})`.mapWith(Number),
+        volumeInPeriodUpasg: sql<string>`SUM(${nftSale.salePrice}) FILTER (WHERE ${block.datetime} >= ${curFrom} AND ${block.datetime} < ${curTo})`,
+        volumeInPeriodUsd: sql<number>`SUM(${nftSale.salePrice} * ${day.tokenPrice} / 1000000) FILTER (WHERE ${block.datetime} >= ${curFrom} AND ${block.datetime} < ${curTo})`,
+
+        // Ventana previa (mismo tamaño, justo antes)
+        salesPrevPeriod: sql<number>`COUNT(*) FILTER (WHERE ${block.datetime} >= ${prevFrom} AND ${block.datetime} < ${prevTo})`,
+        volumePrevPeriodUpasg: sql<string>`SUM(${nftSale.salePrice}) FILTER (WHERE ${block.datetime} >= ${prevFrom} AND ${block.datetime} < ${prevTo})`,
+        volumePrevPeriodUsd: sql<number>`SUM(${nftSale.salePrice} * ${day.tokenPrice} / 1000000) FILTER (WHERE ${block.datetime} >= ${prevFrom} AND ${block.datetime} < ${prevTo})`,
       })
-      .from(nftToTrait)
+      .from(nftSale)
+      .innerJoin(nft, eq(nftSale.nft, nft.id))
+      .innerJoin(nftToTrait, eq(nftToTrait.nftId, nft.id))
       .innerJoin(nftTrait, eq(nftTrait.id, nftToTrait.traitId))
-      .innerJoin(nft, eq(nft.id, nftToTrait.nftId))
+      .innerJoin(block, eq(block.height, nftSale.saleBlockHeight))
+      .innerJoin(day, eq(day.id, block.dayId))
       .where(
           and(
               eq(nft.collection, address),
               options.traitType ? eq(nftTrait.traitType, options.traitType) : undefined
           )
-      );
+      )
+      .groupBy(nftTrait.traitType, nftTrait.traitValue) as TraitPeriodRow[];
 
-  const nftsWithTraits = Array.from(
-      new Map(linkedTraitsRaw.map(t => [t.id, t])).values()
-  );
+  const mapped: TraitPeriodStats[] = rows.map((r) => {
+    const salesChangePct = calcChangePct(r.salesInPeriod ?? 0, r.salesPrevPeriod ?? 0);
+    const upasgChangePct = calcChangePct(
+        parseFloat(r.volumeInPeriodUpasg ?? "0"),
+        parseFloat(r.volumePrevPeriodUpasg ?? "0")
+    );
+    const usdChangePct = calcChangePct(r.volumeInPeriodUsd ?? 0, r.volumePrevPeriodUsd ?? 0);
 
-  const salesData = await db
-      .select({
-        traitId: nftTrait.id,
-        salePrice: nftSale.salePrice,
-        saleDenom: nftSale.saleDenom,
-        datetime: block.datetime,
-        tokenPrice: day.tokenPrice
-      })
-      .from(nftSale)
-      .innerJoin(nft, eq(nft.id, nftSale.nft))
-      .innerJoin(nftToTrait, eq(nftToTrait.nftId, nft.id))
-      .innerJoin(nftTrait, eq(nftTrait.id, nftToTrait.traitId))
-      .innerJoin(block, eq(block.height, nftSale.saleBlockHeight))
-      .innerJoin(day, eq(day.id, block.dayId))
-      .where(and(eq(nftTrait.collection, address), options.traitType ? eq(nftTrait.traitType, options.traitType) : undefined, ...dateFilters));
-
-  const traitSalesMap = new Map<string, {
-    sales: { priceUsd: number; pricePasg: number; datetime: Date; }[];
-    totalSales: number;
-    volumeUsd: number;
-    volumePasg: number;
-    averagePriceUsd: number;
-    averagePricePasg: number;
-  }>();
-
-  salesData.forEach((sale) => {
-    const trait = nftsWithTraits.find((t) => t.id === sale.traitId);
-    if (!trait) return;
-    const key = `${trait.traitType}:${trait.traitValue}`;
-    if (!traitSalesMap.has(key)) {
-      traitSalesMap.set(key, { sales: [], totalSales: 0, volumeUsd: 0, volumePasg: 0, averagePriceUsd: 0, averagePricePasg: 0 });
-    }
-    const pricePasg = udenomToDenom(parseFloat(sale.salePrice));
-    const priceUsd = calculateUsdPrice(sale.salePrice, sale.tokenPrice);
-    if (priceUsd && pricePasg) {
-      const data = traitSalesMap.get(key)!;
-      data.sales.push({ priceUsd, pricePasg, datetime: sale.datetime });
-      data.totalSales++;
-      data.volumeUsd += priceUsd;
-      data.volumePasg += pricePasg;
-      data.averagePriceUsd = data.volumeUsd / data.totalSales;
-      data.averagePricePasg = data.volumePasg / data.totalSales;
-    }
+    return {
+      traitType: r.traitType,
+      traitValue: r.traitValue,
+      totalSales: r.totalSales ?? 0,
+      totalVolume: {
+        upasg: r.totalVolumeUpasg?.toString() ?? "0",
+        usd: r.totalVolumeUsd?.toString() ?? "0",
+      },
+      salesInPeriod: r.salesInPeriod ?? 0,
+      salesChangePct,
+      volumeInPeriod: {
+        upasg: r.volumeInPeriodUpasg ?? "0",
+        upasgChangePct,
+        usd: (r.volumeInPeriodUsd ?? 0)?.toString(),
+        usdChangePct,
+      },
+    };
   });
 
-  const traitStats = new Map<string, TraitStats>();
-  nftsWithTraits.forEach((trait) => {
-    const key = `${trait.traitType}:${trait.traitValue}`;
-    if (!traitStats.has(key)) {
-      traitStats.set(key, {
-        traitType: trait.traitType,
-        traitValue: trait.traitValue,
-        metrics: {
-          totalSales: 0, volumeUsd: 0, volumePasg: 0, priceUsd: 0, pricePasg: 0,
-          change24HourPercent: null, change7DayPercent: null, change30DayPercent: null
-        }
-      });
-    }
-    const stats = traitStats.get(key)!;
-    const ts = traitSalesMap.get(key);
-    if (ts) {
-      const now = new Date();
-      const sales = ts.sales.sort((a, b) => b.datetime.getTime() - a.datetime.getTime());
-      stats.metrics.totalSales = ts.totalSales;
-      stats.metrics.volumeUsd = ts.volumeUsd;
-      stats.metrics.volumePasg = ts.volumePasg;
-      stats.metrics.priceUsd = ts.averagePriceUsd;
-      stats.metrics.pricePasg = ts.averagePricePasg;
-      stats.metrics.change24HourPercent = calculateVolumeChange(sales, now, 1);
-      stats.metrics.change7DayPercent = calculateVolumeChange(sales, now, 7);
-      stats.metrics.change30DayPercent = calculateVolumeChange(sales, now, 30);
-    }
-  });
+  if (options.sortBy === "top") {
+    mapped.sort(
+        (a, b) => parseFloat(b.volumeInPeriod.usd || "0") - parseFloat(a.volumeInPeriod.usd || "0")
+    );
+  } else if (options.sortBy === "trending") {
+    mapped.sort((a, b) => (b.salesInPeriod ?? 0) - (a.salesInPeriod ?? 0));
+  }
 
-  return sortTraitStats(Array.from(traitStats.values()), options.sortBy);
+  return mapped;
 }
 
-function sortTraitStats(stats: TraitStats[], sortBy?: "top" | "trending"): TraitStats[] {
-  if (sortBy === "top") return stats.sort((a, b) => b.metrics.volumeUsd - a.metrics.volumeUsd);
-  if (sortBy === "trending") return stats.sort((a, b) => b.metrics.totalSales - a.metrics.totalSales);
-  return stats;
-}
 
 function calculateUsdPrice(amount: string, tokenPrice: number | null): number | null {
   if (!amount || !tokenPrice) return null;
