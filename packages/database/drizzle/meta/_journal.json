@@ -15,6 +15,13 @@
       "when": 1755120188291,
       "tag": "0001_panoramic_eddie_brock",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1755576709099,
+      "tag": "0002_blue_sabra",
+      "breakpoints": true
     }
   ]
 }

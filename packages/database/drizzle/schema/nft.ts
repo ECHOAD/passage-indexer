@@ -22,6 +22,7 @@ export const nft = pgTable(
   {
     id: uuid("id").defaultRandom().primaryKey().notNull(),
     tokenId: integer("token_id").notNull(),
+    rawTokenId: varchar("raw_token_id", { length: 255 }).notNull(),
     owner: varchar("owner", { length: 255 }),
     image: varchar("image", { length: 255 }),
     name: varchar("name", { length: 255 }),
