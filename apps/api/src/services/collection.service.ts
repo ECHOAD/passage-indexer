@@ -346,6 +346,10 @@ async function getUniqueOwnerCount(collectionAddress: string) {
   return uniqueOwnerCount;
 }
 
+const grossNftSaleExpr = sql`(${nftSale.salePrice}::numeric 
+                      + ${nftSale.marketFee}::numeric 
+                      + ${nftSale.royaltyFee}::numeric)`;
+
 async function getSaleAndVolumeStats(collectionAddress: string | undefined, period: Period): Promise<PeriodStats> {
   const lastProcessedDate = await getLastProcessedISODate();
   const w = windowSql(period);
@@ -354,17 +358,17 @@ async function getSaleAndVolumeStats(collectionAddress: string | undefined, peri
       .select({
         // Sales aggregates
         totalSales: count(),
-        totalVolumeUpasg: sum(nftSale.salePrice),
-        totalVolumeUsd: sum(sql`${nftSale.salePrice} * ${day.tokenPrice} / 1000000`),
+        totalVolumeUpasg: sum(grossNftSaleExpr),
+        totalVolumeUsd: sum(sql`${grossNftSaleExpr} * ${day.tokenPrice} / 1000000`),
 
         salesInPeriod: sql`COUNT(*) FILTER (WHERE ${block.datetime} >= ${lastProcessedDate}::timestamp - ${w.cur})`.mapWith(Number),
         salesPrevPeriod: sql`COUNT(*) FILTER (WHERE ${block.datetime} >= ${lastProcessedDate}::timestamp - ${w.prevFrom} AND ${block.datetime} < ${lastProcessedDate}::timestamp - ${w.prevTo})`.mapWith(Number),
 
-        volumeInPeriodUpasg: sql<string>`SUM(${nftSale.salePrice}) FILTER (WHERE ${block.datetime} >= ${lastProcessedDate}::timestamp - ${w.cur})`,
-        volumePrevPeriodUpasg: sql<string>`SUM(${nftSale.salePrice}) FILTER (WHERE ${block.datetime} >= ${lastProcessedDate}::timestamp - ${w.prevFrom} AND ${block.datetime} < ${lastProcessedDate}::timestamp - ${w.prevTo})`,
+        volumeInPeriodUpasg: sql<string>`SUM(${grossNftSaleExpr}) FILTER (WHERE ${block.datetime} >= ${lastProcessedDate}::timestamp - ${w.cur})`,
+        volumePrevPeriodUpasg: sql<string>`SUM(${grossNftSaleExpr}) FILTER (WHERE ${block.datetime} >= ${lastProcessedDate}::timestamp - ${w.prevFrom} AND ${block.datetime} < ${lastProcessedDate}::timestamp - ${w.prevTo})`,
 
-        volumeInPeriodUsd: sql<number>`SUM(${nftSale.salePrice} * ${day.tokenPrice} / 1000000) FILTER (WHERE ${block.datetime} >= ${lastProcessedDate}::timestamp - ${w.cur})`,
-        volumePrevPeriodUsd: sql<number>`SUM(${nftSale.salePrice} * ${day.tokenPrice} / 1000000) FILTER (WHERE ${block.datetime} >= ${lastProcessedDate}::timestamp - ${w.prevFrom} AND ${block.datetime} < ${lastProcessedDate}::timestamp - ${w.prevTo})`,
+        volumeInPeriodUsd: sql<number>`SUM(${grossNftSaleExpr} * ${day.tokenPrice} / 1000000) FILTER (WHERE ${block.datetime} >= ${lastProcessedDate}::timestamp - ${w.cur})`,
+        volumePrevPeriodUsd: sql<number>`SUM(${grossNftSaleExpr} * ${day.tokenPrice} / 1000000) FILTER (WHERE ${block.datetime} >= ${lastProcessedDate}::timestamp - ${w.prevFrom} AND ${block.datetime} < ${lastProcessedDate}::timestamp - ${w.prevTo})`,
 
         // Mint aggregates (scalar subqueries with aliases to avoid row multiplication)
         totalMints: sql<number>`
@@ -569,18 +573,18 @@ export async function getCollectionTraits(
         traitValue: nftTrait.traitValue,
 
         totalSales: count(),
-        totalVolumeUpasg: sum(nftSale.salePrice),
-        totalVolumeUsd: sum(sql`${nftSale.salePrice} * ${day.tokenPrice} / 1000000`),
+        totalVolumeUpasg: sum(grossNftSaleExpr),
+        totalVolumeUsd: sum(sql`${grossNftSaleExpr} * ${day.tokenPrice} / 1000000`),
 
         // Ventana actual
         salesInPeriod: sql`COUNT(*) FILTER (WHERE ${block.datetime} >= ${curFrom} AND ${block.datetime} < ${curTo})`.mapWith(Number),
-        volumeInPeriodUpasg: sql<string>`SUM(${nftSale.salePrice}) FILTER (WHERE ${block.datetime} >= ${curFrom} AND ${block.datetime} < ${curTo})`,
-        volumeInPeriodUsd: sql<number>`SUM(${nftSale.salePrice} * ${day.tokenPrice} / 1000000) FILTER (WHERE ${block.datetime} >= ${curFrom} AND ${block.datetime} < ${curTo})`,
+        volumeInPeriodUpasg: sql<string>`SUM(${grossNftSaleExpr}) FILTER (WHERE ${block.datetime} >= ${curFrom} AND ${block.datetime} < ${curTo})`,
+        volumeInPeriodUsd: sql<number>`SUM(${grossNftSaleExpr} * ${day.tokenPrice} / 1000000) FILTER (WHERE ${block.datetime} >= ${curFrom} AND ${block.datetime} < ${curTo})`,
 
         // Ventana previa (mismo tamaño, justo antes)
         salesPrevPeriod: sql<number>`COUNT(*) FILTER (WHERE ${block.datetime} >= ${prevFrom} AND ${block.datetime} < ${prevTo})`,
-        volumePrevPeriodUpasg: sql<string>`SUM(${nftSale.salePrice}) FILTER (WHERE ${block.datetime} >= ${prevFrom} AND ${block.datetime} < ${prevTo})`,
-        volumePrevPeriodUsd: sql<number>`SUM(${nftSale.salePrice} * ${day.tokenPrice} / 1000000) FILTER (WHERE ${block.datetime} >= ${prevFrom} AND ${block.datetime} < ${prevTo})`,
+        volumePrevPeriodUpasg: sql<string>`SUM(${grossNftSaleExpr}) FILTER (WHERE ${block.datetime} >= ${prevFrom} AND ${block.datetime} < ${prevTo})`,
+        volumePrevPeriodUsd: sql<number>`SUM(${grossNftSaleExpr} * ${day.tokenPrice} / 1000000) FILTER (WHERE ${block.datetime} >= ${prevFrom} AND ${block.datetime} < ${prevTo})`,
       })
       .from(nftSale)
       .innerJoin(nft, eq(nftSale.nft, nft.id))

@@ -41,6 +41,10 @@ const route = createRoute({
   }
 });
 
+const grossExpr = sql`(${ nftSale.salePrice}::numeric 
+                      + ${nftSale.marketFee}::numeric 
+                      + ${nftSale.royaltyFee}::numeric)`;
+
 export default new OpenAPIHono().openapi(route, async (c) => {
   const { startDate, endDate } = c.req.valid("query");
 
@@ -50,8 +54,8 @@ export default new OpenAPIHono().openapi(route, async (c) => {
   const [{ saleCount, saleVolumeUpasg, saleVolumeUsd, revenueUPasg, revenueUsd }] = await db
     .select({
       saleCount: count(),
-      saleVolumeUpasg: sum(nftSale.salePrice),
-      saleVolumeUsd: sum(sql`${nftSale.salePrice} * ${day.tokenPrice} / 1000000`),
+      saleVolumeUpasg: sum(grossExpr),
+      saleVolumeUsd: sum(sql`${grossExpr} * ${day.tokenPrice} / 1000000`),
       revenueUPasg: sum(nftSale.marketFee),
       revenueUsd: sum(sql`${nftSale.marketFee} * ${day.tokenPrice} / 1000000`)
     })

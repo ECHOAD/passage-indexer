@@ -177,7 +177,7 @@ export async function getRecentNftSales({
       .select({
         saleBlockHeight: nftSale.saleBlockHeight,
         saleAt: blockTable.datetime,
-        salePrice: nftSale.salePrice,
+        salePrice: grossExpr,
         saleDenom: nftSale.saleDenom,
         nftId: nft.id,
         tokenId: nft.tokenId,
@@ -228,6 +228,9 @@ export async function getRecentNftSales({
   };
 }
 
+const grossExpr = sql`(${nftSale.salePrice}::numeric 
+                      + ${nftSale.marketFee}::numeric 
+                      + ${nftSale.royaltyFee}::numeric)`;
 
 function windowSql(period: Period) {
   if (period === "24h") return { cur: sql`INTERVAL '24 hours'`, prev: sql`INTERVAL '24 hours'` };
@@ -272,37 +275,36 @@ export async function getNftsWithStats(args: GetNftsArgs) {
           .select({
             nftId: nftSale.nft,
 
-            // Totales globales
             totalSales: sql<number>`COUNT(*)`.as("total_sales"),
-            totalVolume: sql<string>`SUM(${nftSale.salePrice})`.as("total_volume"),
+            totalVolume: sql<string>`SUM(${grossExpr})`.as("total_volume"), // <-- GROSS
 
-            // Ventana actual: [now - w.cur, now)
             salesInPeriod: sql<number>`
                 COUNT(*) FILTER (
-            WHERE ${block.datetime} >= (${nowTs} - ${w.cur})
+          WHERE ${block.datetime} >= (${nowTs} - ${w.cur})
                 AND ${block.datetime} <  ${nowTs}
                 )
             `.as("sales_in_period"),
+
             volumeInPeriod: sql<string>`
-                SUM(${nftSale.salePrice}) FILTER (
+                SUM(${grossExpr}) FILTER (
                 WHERE ${block.datetime} >= (${nowTs} - ${w.cur})
                 AND ${block.datetime} <  ${nowTs}
                 )
             `.as("volume_in_period"),
 
-            // Ventana previa: [now - w.cur - w.prev, now - w.cur)
             salesInPeriodCmp: sql<number>`
-          COUNT(*) FILTER (
-            WHERE ${block.datetime} >= (${nowTs} - ${w.cur} - ${w.prev})
-              AND ${block.datetime} <  (${nowTs} - ${w.cur})
-          )
-        `.as("sales_in_period_cmp"),
+                COUNT(*) FILTER (
+          WHERE ${block.datetime} >= (${nowTs} - ${w.cur} - ${w.prev})
+                AND ${block.datetime} <  (${nowTs} - ${w.cur})
+                )
+            `.as("sales_in_period_cmp"),
+
             volumeInPeriodCmp: sql<string>`
-          SUM(${nftSale.salePrice}) FILTER (
-            WHERE ${block.datetime} >= (${nowTs} - ${w.cur} - ${w.prev})
-              AND ${block.datetime} <  (${nowTs} - ${w.cur})
-          )
-        `.as("volume_in_period_cmp"),
+                SUM(${grossExpr}) FILTER (
+                WHERE ${block.datetime} >= (${nowTs} - ${w.cur} - ${w.prev})
+                AND ${block.datetime} <  (${nowTs} - ${w.cur})
+                )
+            `.as("volume_in_period_cmp"),
 
             lastSaleBlockHeight: sql<number>`MAX(${nftSale.saleBlockHeight})`.as("last_sale_block_height"),
             lastSaleAt: sql<Date>`MAX(${block.datetime})`.as("last_sale_at"),
@@ -319,8 +321,9 @@ export async function getNftsWithStats(args: GetNftsArgs) {
           .with(salesAgg)
           .select({
             nftId: salesAgg.nftId,
-            lastSalePrice: nftSale.salePrice,
+            lastSalePrice: grossExpr,
             lastSaleDenom: nftSale.saleDenom,
+            lastSaleGross: sql<string>`${grossExpr}`.as("last_sale_gross"), // <-- GROSS
           })
           .from(salesAgg)
           .innerJoin(nftSale, and(
