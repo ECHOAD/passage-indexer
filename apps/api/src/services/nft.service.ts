@@ -321,15 +321,28 @@ export async function getNftsWithStats(args: GetNftsArgs) {
           .with(salesAgg)
           .select({
             nftId: salesAgg.nftId,
-            lastSalePrice: grossExpr,
+
+            // neto
+            lastSalePrice: nftSale.salePrice,
+
+            // denom
             lastSaleDenom: nftSale.saleDenom,
-            lastSaleGross: sql<string>`${grossExpr}`.as("last_sale_gross"), // <-- GROSS
+
+            // gross
+            lastSaleGross: sql<string>`
+                (${nftSale.salePrice}::numeric
+                    + ${nftSale.marketFee}::numeric
+                    + ${nftSale.royaltyFee}::numeric)
+            `.as("last_sale_gross"),
           })
           .from(salesAgg)
-          .innerJoin(nftSale, and(
-              eq(nftSale.nft, salesAgg.nftId),
-              eq(nftSale.saleBlockHeight, salesAgg.lastSaleBlockHeight)
-          ))
+          .innerJoin(
+              nftSale,
+              and(
+                  eq(nftSale.nft, salesAgg.nftId),
+                  eq(nftSale.saleBlockHeight, salesAgg.lastSaleBlockHeight)
+              )
+          )
   );
 
   const nftsStats = db.$with("nfts_stats").as(

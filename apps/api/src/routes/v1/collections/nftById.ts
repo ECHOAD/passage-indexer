@@ -99,7 +99,7 @@ export default new OpenAPIHono().openapi(route, async (c) => {
     type: "sale",
     buyer: sale.newOwner,
     datetime: sale.block?.datetime ?? null,
-    price: sale.salePrice,
+    price: sale.salePrice + sale.marketFee + sale.royaltyFee,
     denom: sale.saleDenom,
     usdPrice: getUsdPrice(sale.salePrice, sale.saleDenom, sale.block?.day.tokenPrice)
   }));
