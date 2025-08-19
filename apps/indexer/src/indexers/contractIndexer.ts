@@ -365,7 +365,6 @@ export class ContractIndexer extends Indexer {
         .insert(nft)
         .values({
           tokenId: parseTokenId(token_migration.token_id),
-          rawTokenId: token_migration.token_id,
           owner: token_migration.owner,
           migratedOnBlockHeight: height,
           metadata: token_migration.extension,
@@ -396,8 +395,7 @@ export class ContractIndexer extends Indexer {
       const dbNft = await dbTransaction
         .insert(nft)
         .values({
-          tokenId: parseTokenId(token_migration.token_id),
-          rawTokenId: token_migration.token_id,
+          tokenId: token_migration.token_id,
           metadata: token_migration.metadata,
           collection: dbCollection.address,
           createdOnBlockHeight: height,
@@ -428,8 +426,7 @@ export class ContractIndexer extends Indexer {
       const dbNft = await dbTransaction
         .insert(nft)
         .values({
-          tokenId: parseTokenId(token_metadata.token_id),
-          rawTokenId: token_metadata.token_id,
+          tokenId: token_metadata.token_id,
           metadata: token_metadata.metadata,
           collection: dbCollection.address,
           createdOnBlockHeight: height

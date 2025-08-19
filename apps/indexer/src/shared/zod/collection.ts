@@ -45,7 +45,7 @@ export const CollectionMetadataTxSchema = z.object({
   upsert_token_metadatas: z.object({
     token_metadatas: z.array(
       z.object({
-        token_id: z.string(),
+        token_id: z.number(),
         metadata: z.unknown()
       })
     )
@@ -70,7 +70,7 @@ export const CollectionMigrationDataTxSchema = z.object({
     migrations: z.object({
       tokens: z.array(
         z.object({
-          token_id: z.string(),
+          token_id: z.number(),
           is_minted: z.boolean(),
           metadata: z.unknown()
         })

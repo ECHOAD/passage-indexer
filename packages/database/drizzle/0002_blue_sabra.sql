@@ -1,1 +1,0 @@
-ALTER TABLE "nft" ADD COLUMN "raw_token_id" varchar(255) NOT NULL;
