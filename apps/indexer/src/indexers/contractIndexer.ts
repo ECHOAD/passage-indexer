@@ -11,6 +11,7 @@ import {
   collection,
   eq,
   nft,
+  inArray,
   nftSale,
   nftBid,
   or,
@@ -691,39 +692,51 @@ export class ContractIndexer extends Indexer {
     });
   }
 
-  private async removeNftBid(dbTransaction: DbTransaction, txEvents: TransactionEventWithAttributes[], _tokenId: string, owner: string, height: number) {
+  private async removeNftBid(
+      dbTransaction: DbTransaction,
+      txEvents: TransactionEventWithAttributes[],
+      _tokenId: string | number,
+      owner: string,
+      height: number
+  ) {
     const marketAddress = getEventAttributeValue(txEvents, "wasm-remove-bid", "_contract_address");
-    const tokenId = parseTokenId(_tokenId);
+    const tokenId = typeof _tokenId === "number" ? _tokenId : parseTokenId(_tokenId);
 
-    if (!marketAddress) throw "Could not find collection address in remove bid event";
-
-    const [dbNft] = await dbTransaction
-      .select({ id: nft.id })
-      .from(nft)
-      .innerJoin(collection, eq(collection.address, nft.collection))
-      .where(and(eq(nft.tokenId, tokenId), eq(collection.marketContract, marketAddress)));
-
-    if (!dbNft) {
-      throw new Error(`Nft not found for ${tokenId} in ${marketAddress}`);
+    if (!marketAddress) {
+      throw new Error("Could not find collection (market) address in remove bid event");
     }
 
-    const bid = await dbTransaction.query.nftBid.findFirst({
-      where: and(eq(nftBid.nft, dbNft.id), eq(nftBid.owner, owner))
-    });
+    const nftRows = await dbTransaction
+        .select({ id: nft.id })
+        .from(nft)
+        .innerJoin(collection, eq(collection.address, nft.collection))
+        .where(and(
+            eq(nft.tokenId, tokenId),
+            eq(collection.marketContract, marketAddress)
+        ));
 
-    if (!bid) {
-      throw new Error(`Bid not found for ${tokenId} in ${marketAddress}`);
+    if (!nftRows.length) {
+      throw new Error(`NFT not found for tokenId=${tokenId} in market=${marketAddress}`);
     }
 
-    if (!bid.removedBlockHeight) {
-      await dbTransaction
-          .update(nftBid)
-          .set({
-            removedBlockHeight: height
-          })
-          .where(eq(nftBid.id, bid.id));
+    const nftIds = nftRows.map(r => r.id);
+
+
+    const updated = await dbTransaction
+        .update(nftBid)
+        .set({ removedBlockHeight: height })
+        .where(and(
+            inArray(nftBid.nft, nftIds),
+            eq(nftBid.owner, owner),
+            isNull(nftBid.removedBlockHeight)
+        ))
+        .returning({ id: nftBid.id });
+
+    if (!updated || updated.length === 0) {
+      throw new Error(`Could not find bid for tokenId=${tokenId} in market=${marketAddress} and owner=${owner}`);
     }
   }
+
 
   private async setNftCollectionBid(
     dbTransaction: DbTransaction,

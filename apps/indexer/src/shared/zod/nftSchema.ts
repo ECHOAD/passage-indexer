@@ -32,7 +32,7 @@ export const NftSetBidSchema = z.object({
 
 export const NftRemoveBidSchema = z.object({
   remove_bid: z.object({
-    token_id: z.string()
+    token_id: z.string().or(z.number())
   })
 });
 
