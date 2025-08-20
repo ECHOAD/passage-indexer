@@ -584,6 +584,7 @@ export class ContractIndexer extends Indexer {
         .values({
             owner: dbNft.owner,
             nft: dbNft.id,
+            rawTokenId: tokenId,
             forSalePrice: sellPrice.amount,
             forSaleDenom: sellPrice.denom,
             forSaleBlockHeight: height
@@ -685,6 +686,7 @@ export class ContractIndexer extends Indexer {
     await dbTransaction.insert(nftBid).values({
       owner: owner,
       nft: dbNft.id,
+      rawTokenId: _tokenId,
       bidPrice: amount,
       bidDenom: denom,
       bidBlockHeight: height,

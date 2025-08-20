@@ -11,6 +11,7 @@ export const nftListing = pgTable(
     nft: uuid("nft")
       .references(() => nft.id)
       .notNull(),
+    rawTokenId: varchar("raw_token_id", { length: 255 }).notNull(),
     forSalePrice: numeric("for_sale_price"),
     forSaleDenom: varchar("for_sale_denom", { length: 255 }),
     forSaleBlockHeight: integer("for_sale_block_height").references(

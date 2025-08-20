@@ -18,6 +18,7 @@ export const nftBid = pgTable(
     nft: uuid("nft")
       .references(() => nft.id)
       .notNull(),
+    rawTokenId: varchar("raw_token_id", { length: 255 }).notNull(),
     bidPrice: numeric("bid_price"),
     bidDenom: varchar("bid_denom", { length: 255 }),
     bidBlockHeight: integer("bid_block_height").references(() => block.height),
