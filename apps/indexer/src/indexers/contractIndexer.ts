@@ -714,7 +714,7 @@ export class ContractIndexer extends Indexer {
         .innerJoin(collection, eq(collection.address, nft.collection))
         .where(and(
             eq(nft.tokenId, tokenId),
-            eq(collection.marketContract, marketAddress)
+            eq(collection.marketContract, marketAddress),
         ));
 
     if (!nftRows.length) {
@@ -724,19 +724,14 @@ export class ContractIndexer extends Indexer {
     const nftIds = nftRows.map(r => r.id);
 
 
-    const updated = await dbTransaction
+    await dbTransaction
         .update(nftBid)
-        .set({ removedBlockHeight: height })
+        .set({removedBlockHeight: height})
         .where(and(
             inArray(nftBid.nft, nftIds),
             eq(nftBid.owner, owner),
             isNull(nftBid.removedBlockHeight)
-        ))
-        .returning({ id: nftBid.id });
-
-    if (!updated || updated.length === 0) {
-      throw new Error(`Could not find bid for tokenId=${tokenId} in market=${marketAddress} and owner=${owner}`);
-    }
+        ));
   }
 
 
