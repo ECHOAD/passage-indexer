@@ -359,6 +359,7 @@ export async function getNftsWithStats(args: GetNftsArgs) {
             mintedOnBlockHeight: nft.mintedOnBlockHeight,
             mintPrice: nft.mintPrice,
             mintDenom: nft.mintDenom,
+            forSaleRawTokenId: nftListing.rawTokenId,
             forSalePrice: nftListing.forSalePrice,
             forSaleDenom: nftListing.forSaleDenom,
 

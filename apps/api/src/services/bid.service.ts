@@ -1,4 +1,20 @@
-import { db, eq, nft, collection, nftBid, isNull, and, nftCollectionBid, inArray, NftBid, Collection, Nft, Block, NftCollectionBid, block } from "database";
+import {
+  db,
+  eq,
+  nft,
+  collection,
+  nftBid,
+  isNull,
+  and,
+  nftCollectionBid,
+  inArray,
+  NftBid,
+  Collection,
+  Nft,
+  Block,
+  NftCollectionBid,
+  block
+} from "database";
 
 type MappedBidType = {
   nft: {
@@ -13,7 +29,9 @@ type MappedBidType = {
   collection: {
     address: string;
     name: string;
+    image: string;
   };
+  rawTokenId: string | null;
   price: string;
   denom: string;
   createdHeight: number;
@@ -81,10 +99,19 @@ export async function getCreatedBids(owner: string): Promise<MappedBidType[]> {
   return allBids;
 }
 
-function mapBid(bid: NftBid | NftCollectionBid, block: Block, nft: Nft | null, collection: Collection): MappedBidType {
+function isNftBid(bid: NftBid | NftCollectionBid): bid is NftBid {
+  return "rawTokenId" in bid;
+}
+
+function mapBid(
+    bid: NftBid | NftCollectionBid,
+    block: Block,
+    nft: Nft | null,
+    collection: Collection
+): MappedBidType {
   return {
     nft: nft
-      ? {
+        ? {
           tokenId: nft.tokenId,
           owner: nft.owner,
           metadata: nft.metadata,
@@ -93,11 +120,13 @@ function mapBid(bid: NftBid | NftCollectionBid, block: Block, nft: Nft | null, c
           mintPrice: nft.mintPrice,
           mintDenom: nft.mintDenom
         }
-      : null,
+        : null,
     collection: {
       address: collection.address,
-      name: collection.name
+      name: collection.name,
+      image: collection.image
     },
+    rawTokenId: isNftBid(bid) ? bid.rawTokenId : null,
     price: bid.bidPrice,
     denom: bid.bidDenom,
     createdHeight: block.height,

@@ -35,6 +35,7 @@ const listNftsRoute = createRoute({
                   mintDenom: z.string().nullable(),
                   saleType: z.enum(["LIVE_AUCTION", "FIXED_PRICE", "NOT_FOR_SALE"]),
                   listedPrice: z.number().nullable(),
+                  listedRawTokenId: z.string().nullable(),
                   listedDenom: z.string().nullable(),
                   totalSales: z.number(),
                   salesInPeriod: z.number(),

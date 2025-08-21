@@ -35,8 +35,10 @@ const route = createRoute({
               }),
               collection: z.object({
                 address: z.string(),
-                name: z.string()
+                name: z.string(),
+                image: z.string()
               }),
+              rawTokenId: z.string(),
               price: z.string(),
               denom: z.string(),
               createdHeight: z.number(),

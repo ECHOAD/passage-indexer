@@ -109,6 +109,7 @@ export async function getAccountNfts({
         mintDenom: nft.mintDenom,
         listedPrice: nftListing.forSalePrice,
         listedDenom: nftListing.forSaleDenom,
+        listedRawTokenId: nftListing.rawTokenId,
       })
       .from(nft)
       .leftJoin(
@@ -135,7 +136,8 @@ export async function getAccountNfts({
       mintPrice: r.mintPrice,
       mintDenom: r.mintDenom,
       listedPrice: r.listedPrice ?? null,
-      listedDenom: r.listedDenom ?? null
+      listedDenom: r.listedDenom ?? null,
+      listedRawTokenId: r.listedRawTokenId ?? null,
     })),
     totalCount
   };
