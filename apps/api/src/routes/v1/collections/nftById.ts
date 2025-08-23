@@ -47,6 +47,7 @@ const route = createRoute({
               z.object({
                 datetime: z.string().nullable(),
                 price: z.number(),
+                rawTokenId: z.string(),
                 denom: z.string(),
                 usdPrice: z.number().nullable()
               })
@@ -135,6 +136,7 @@ export default new OpenAPIHono().openapi(route, async (c) => {
     })),
     listings: activeListings.map((listing) => ({
       datetime: listing.block?.datetime ?? null,
+      rawTokenId: listing.rawTokenId,
       price: listing.forSalePrice,
       denom: listing.forSaleDenom,
       usdPrice: getUsdPrice(listing.forSalePrice, listing.forSaleDenom, listing.block?.day.tokenPrice)
