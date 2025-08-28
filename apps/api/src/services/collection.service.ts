@@ -546,8 +546,38 @@ function windowFromRange(startISO: string, endISO: string) {
   };
 }
 
+export type TraitPair = { traitType: string; traitValue: string };
 
-export async function getCollectionTraits(
+export async function getCollectionTraitsOnly(
+    address: string,
+    options: { traitType?: string } = {}
+): Promise<TraitPair[]> {
+  const col = await db.query.collection.findFirst({
+    where: (t) => eq(t.address, address),
+  });
+  if (!col) throw new Error("Collection not found");
+
+  const rows = await db
+      .select({
+        traitType: nftTrait.traitType,
+        traitValue: nftTrait.traitValue,
+      })
+      .from(nft)
+      .innerJoin(nftToTrait, eq(nftToTrait.nftId, nft.id))
+      .innerJoin(nftTrait, eq(nftTrait.id, nftToTrait.traitId))
+      .where(
+          and(
+              eq(nft.collection, address),
+              options.traitType ? eq(nftTrait.traitType, options.traitType) : undefined
+          )
+      )
+      .groupBy(nftTrait.traitType, nftTrait.traitValue)
+      .orderBy(nftTrait.traitType, nftTrait.traitValue);
+
+  return rows as TraitPair[];
+}
+
+export async function getCollectionTraitsStats(
     address: string,
     options: {
       traitType?: string;
