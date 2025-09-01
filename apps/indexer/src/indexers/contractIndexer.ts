@@ -756,6 +756,21 @@ export class ContractIndexer extends Indexer {
       throw new Error(`Collection not found ${collectionMarketAddress}`);
     }
 
+    const existingBid = await dbTransaction.query.nftCollectionBid.findFirst({
+      where: and(
+          eq(nftCollectionBid.collection, dbCollection.address),
+          eq(nftCollectionBid.owner, owner),
+          isNull(nftCollectionBid.removedBlockHeight)
+      )
+    });
+
+    if (existingBid) {
+      await dbTransaction
+          .update(nftCollectionBid)
+          .set({ removedBlockHeight: height })
+          .where(eq(nftCollectionBid.id, existingBid.id));
+    }
+
     await dbTransaction.insert(nftCollectionBid).values({
       owner: owner,
       collection: dbCollection.address,
