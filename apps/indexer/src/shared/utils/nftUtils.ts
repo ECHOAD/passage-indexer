@@ -36,10 +36,7 @@ const getFirstAttr = (
 ): string | undefined =>
     attrs.find(a => a.key === key)?.value ?? undefined;
 
-/**
- * Devuelve SOLO valores no nulos para `key`,
- * tipados como `string` (no `string | null`).
- */
+
 const getAllAttr = (
     attrs: TransactionEventAttribute[],
     key: string
@@ -49,25 +46,18 @@ const getAllAttr = (
         .filter(a => a.key === key && a.value != null)
         .map(a => ({ value: a.value as string, attrIdx: a.__attrIdx as number }));
 
-/**
- * Extrae { minter, cw721 } sin depender de code_id.
- * - El minter se toma del evento `reply` (su _contract_address).
- * - El cw721 es el otro `_contract_address` dentro de los `instantiate` del mismo mensaje.
- * - Si hay ambigüedad, usa el ancla `wasm` con `action=instantiate_cw721_reply` del minter.
- */
+
 export function extractMinterAndCw721OnInstantiateReply(
     events: TransactionEventWithAttributes[]
 ): { minter: string; cw721: string } {
   if (!events?.length) throw new Error("No events provided.");
 
-  // --- limitamos el scope al mismo msgIndex del reply (por seguridad)
   const replyEvt = events.find(e => e.type === "reply");
   if (!replyEvt) throw new Error("Minter not found: no 'reply' event.");
   const scopeMsgIndex = replyEvt.msgIndex;
 
   const sameMsg = events.filter(e => e.msgIndex === scopeMsgIndex);
 
-  // 1️⃣ MINTER
   const minter =
       sameMsg
           .filter(e => e.type === "reply")
@@ -78,7 +68,6 @@ export function extractMinterAndCw721OnInstantiateReply(
     throw new Error("Minter not found in 'reply' event for this message.");
   }
 
-  // 2️⃣ CANDIDATOS CW721 (no nulos gracias a getAllAttr)
   type CandidateCW721 = { address: string; evIdx: number; attrIdx: number };
 
   const instantiateCandidates: CandidateCW721[] = sameMsg
@@ -92,7 +81,6 @@ export function extractMinterAndCw721OnInstantiateReply(
       )
       .filter(c => c.address !== minter);
 
-  // quitar duplicados por address manteniendo el primero cronológico
   const seen = new Set<string>();
   const uniqueCandidates: CandidateCW721[] = instantiateCandidates.filter(c => {
     if (seen.has(c.address)) return false;
@@ -110,7 +98,6 @@ export function extractMinterAndCw721OnInstantiateReply(
     return { minter, cw721: uniqueCandidates[0].address };
   }
 
-  // 3️⃣ ANCLA: wasm del minter con action=instantiate_cw721_reply
   const wasmAnchor = sameMsg.find(
       e =>
           e.type === "wasm" &&
@@ -119,7 +106,6 @@ export function extractMinterAndCw721OnInstantiateReply(
   );
 
   if (wasmAnchor) {
-    // Elegimos el candidato cuya posición sea la última <= a la del ancla.
     const best = uniqueCandidates
         .filter(c => c.evIdx <= wasmAnchor.index)
         .sort((a, b) => (b.evIdx - a.evIdx) || (b.attrIdx - a.attrIdx))[0];
@@ -127,7 +113,6 @@ export function extractMinterAndCw721OnInstantiateReply(
     if (best) return { minter, cw721: best.address };
   }
 
-  // 4️⃣ Fallback robusto: primero en orden cronológico
   const fallback = uniqueCandidates
       .sort((a, b) => (a.evIdx - b.evIdx) || (a.attrIdx - b.attrIdx))[0];
 
