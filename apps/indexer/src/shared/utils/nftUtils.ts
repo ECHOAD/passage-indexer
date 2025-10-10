@@ -48,10 +48,8 @@ const get = (attrs: TransactionEventAttribute[], key: string) => attrs.find(a =>
  * This approach is reliable for both testnet and mainnet where code IDs may differ.
  */
 export function extractMinterAndCw721OnInstantiateReply(
-    allEvents: TransactionEventWithAttributes[],
-    msgIndex: number | undefined
+    events: TransactionEventWithAttributes[],
 ): { minter: string; cw721: string } {
-  const events = byMsg(allEvents, msgIndex)
 
   // 1️⃣ Identify the minter via the reply event
   const minter = events

@@ -258,7 +258,7 @@ export class ContractIndexer extends Indexer {
 
   private async handleCreateCollectionWithMinter(height: number, collectionTx: CollectionTx2, msg: Message, dbTransaction: DbTransaction, txEvents: TransactionEventWithAttributes[]) {
 
-    const { minter: minterContract, cw721: collectionAddress } = extractMinterAndCw721OnInstantiateReply(txEvents, msg.index)
+    const { minter: minterContract, cw721: collectionAddress } = extractMinterAndCw721OnInstantiateReply(txEvents)
 
 
     if (!collectionAddress || !minterContract) throw new Error(`Collection | Minter address not found for ${collectionTx.cw721_instantiate_msg.name}`);
