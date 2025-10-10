@@ -36,7 +36,10 @@ const getFirstAttr = (
 ): string | undefined =>
     attrs.find(a => a.key === key)?.value ?? undefined;
 
-
+/**
+ * Returns all attributes for a given key,
+ * skipping null values and typing them as `string`.
+ */
 const getAllAttr = (
     attrs: TransactionEventAttribute[],
     key: string
@@ -46,79 +49,92 @@ const getAllAttr = (
         .filter(a => a.key === key && a.value != null)
         .map(a => ({ value: a.value as string, attrIdx: a.__attrIdx as number }));
 
-
-export function extractMinterAndCw721OnInstantiateReply(
+/**
+ * Extracts `{ cw721, minter }` when the CW721 contract address
+ * comes from the `reply` event.
+ *
+ * Logic:
+ * - CW721 is taken from the `reply` event (`_contract_address`).
+ * - Minter is the other `_contract_address` found in the `instantiate` events
+ *   within the same message.
+ * - If a `wasm` event with `action=instantiate_cw721_reply` exists,
+ *   its `_contract_address` is used as the minter directly.
+ */
+export function extractCw721AndMinterOnReply(
     events: TransactionEventWithAttributes[]
-): { minter: string; cw721: string } {
+): { cw721: string; minter: string } {
   if (!events?.length) throw new Error("No events provided.");
 
+  // --- Restrict search to the same msgIndex as the reply event
   const replyEvt = events.find(e => e.type === "reply");
-  if (!replyEvt) throw new Error("Minter not found: no 'reply' event.");
+  if (!replyEvt) throw new Error("CW721 not found: no 'reply' event.");
   const scopeMsgIndex = replyEvt.msgIndex;
 
   const sameMsg = events.filter(e => e.msgIndex === scopeMsgIndex);
 
-  const minter =
+  // 1️⃣ CW721 comes from the reply event
+  const cw721 =
       sameMsg
           .filter(e => e.type === "reply")
           .map(e => getFirstAttr(e.attributes, "_contract_address"))
           .find(Boolean) ?? undefined;
 
-  if (!minter) {
-    throw new Error("Minter not found in 'reply' event for this message.");
+  if (!cw721) {
+    throw new Error("CW721 not found in 'reply' event for this message.");
   }
 
-  type CandidateCW721 = { address: string; evIdx: number; attrIdx: number };
+  // 2️⃣ Try to detect the minter directly via wasm anchor
+  const wasmAnchor = sameMsg.find(
+      e =>
+          e.type === "wasm" &&
+          getFirstAttr(e.attributes, "action") === "instantiate_cw721_reply"
+  );
+  const minterFromAnchor = wasmAnchor
+      ? getFirstAttr(wasmAnchor.attributes, "_contract_address")
+      : undefined;
 
-  const instantiateCandidates: CandidateCW721[] = sameMsg
+  // 3️⃣ Collect all instantiate candidates (different from cw721)
+  type CandidateMinter = { address: string; evIdx: number; attrIdx: number };
+  const instantiateCandidates: CandidateMinter[] = sameMsg
       .filter(e => e.type === "instantiate")
       .flatMap(e =>
           getAllAttr(e.attributes, "_contract_address").map(a => ({
-            address: a.value,           // <-- ya es string (no null)
+            address: a.value,
             evIdx: e.index,
             attrIdx: a.attrIdx,
           }))
       )
-      .filter(c => c.address !== minter);
+      .filter(c => c.address !== cw721);
 
+  // Remove duplicates by address, keeping the first one chronologically
   const seen = new Set<string>();
-  const uniqueCandidates: CandidateCW721[] = instantiateCandidates.filter(c => {
+  const uniqueCandidates: CandidateMinter[] = instantiateCandidates.filter(c => {
     if (seen.has(c.address)) return false;
     seen.add(c.address);
     return true;
   });
 
+  // 4️⃣ If wasm anchor was found, use it as the minter (most reliable source)
+  if (minterFromAnchor) {
+    return { cw721, minter: minterFromAnchor };
+  }
+
+  // 5️⃣ Fallback to instantiate candidates
   if (uniqueCandidates.length === 0) {
-    throw new Error(
-        "No instantiate candidate different from minter (CW721) in this message."
-    );
+    throw new Error("No instantiate candidate different from CW721 (minter) found.");
   }
 
   if (uniqueCandidates.length === 1) {
-    return { minter, cw721: uniqueCandidates[0].address };
+    return { cw721, minter: uniqueCandidates[0].address };
   }
 
-  const wasmAnchor = sameMsg.find(
-      e =>
-          e.type === "wasm" &&
-          getFirstAttr(e.attributes, "_contract_address") === minter &&
-          getFirstAttr(e.attributes, "action") === "instantiate_cw721_reply"
-  );
-
-  if (wasmAnchor) {
-    const best = uniqueCandidates
-        .filter(c => c.evIdx <= wasmAnchor.index)
-        .sort((a, b) => (b.evIdx - a.evIdx) || (b.attrIdx - a.attrIdx))[0];
-
-    if (best) return { minter, cw721: best.address };
-  }
-
+  // 6️⃣ Final fallback: pick the first in chronological order
   const fallback = uniqueCandidates
       .sort((a, b) => (a.evIdx - b.evIdx) || (a.attrIdx - b.attrIdx))[0];
 
-  if (fallback) return { minter, cw721: fallback.address };
+  if (fallback) return { cw721, minter: fallback.address };
 
   throw new Error(
-      "Ambiguity when resolving CW721 without code_id; multiple instantiate candidates found."
+      "Ambiguity when resolving minter without anchor; multiple instantiate candidates found."
   );
 }
