@@ -51,7 +51,9 @@ import {
   WhitelistInfoSchema,
   WhitelistInfoTx,
   WhitelistAddMembersSchema,
-  WhitelistAddMembersTx
+  WhitelistAddMembersTx,
+  CollectionMinterTxSchema2,
+  CollectionTx2
 } from "@src/shared/zod/collection";
 import {
   NftAcceptBidSchema,
@@ -67,7 +69,11 @@ import {
   NftSetBidSchema,
   NftTransferSchema
 } from "@src/shared/zod/nftSchema";
-import {getEventAttributeValue, parseTokenId} from "@src/shared/utils/nftUtils";
+import {
+  extractMinterAndCw721OnInstantiateReply,
+  getEventAttributeValue,
+  parseTokenId
+} from "@src/shared/utils/nftUtils";
 import z from "zod";
 
 type ZodHandler<T> = { type: z.ZodType<T>; handler: (data: T) => Promise<void> | void };
@@ -102,6 +108,7 @@ export class ContractIndexer extends Indexer {
       createZodHandler(CollectionMinterTxSchema, (collectionMinterTx) =>
         this.handleAssignMinterToCollection(height, collectionMinterTx, msg, dbTransaction, txEvents)
       ),
+      createZodHandler(CollectionMinterTxSchema2, (collectionMinterTx) => this.handleCreateCollectionWithMinter(height, collectionMinterTx, msg,dbTransaction, txEvents)) ,
       createZodHandler(CollectionMarketplaceTxSchema, (collectionMarketplaceTx) =>
         this.insertMarketplaceData(height, dbTransaction, collectionMarketplaceTx,msg, txEvents)
       ),
@@ -247,6 +254,36 @@ export class ContractIndexer extends Indexer {
       royaltyFee: collectionTx.collection_info.royalty_info?.share
     });
   }
+
+
+  private async handleCreateCollectionWithMinter(height: number, collectionTx: CollectionTx2, msg: Message, dbTransaction: DbTransaction, txEvents: TransactionEventWithAttributes[]) {
+
+    const { minter: minterContract, cw721: collectionAddress } = extractMinterAndCw721OnInstantiateReply(txEvents, msg.index)
+
+
+    if (!collectionAddress || !minterContract) throw new Error(`Collection | Minter address not found for ${collectionTx.cw721_instantiate_msg.name}`);
+
+    const whitelistDb = await dbTransaction.query.whitelist.findFirst({
+      where: (whitelist, { eq }) => eq(whitelist.address, (collectionTx.whitelist ?? ''))
+    })
+
+    await dbTransaction.insert(collection).values({
+      address: collectionAddress,
+      createdHeight: height,
+      name: collectionTx.cw721_instantiate_msg.name,
+      symbol: collectionTx.cw721_instantiate_msg.symbol,
+      minter: collectionTx.cw721_instantiate_msg.minter,
+      mintContract: minterContract,
+      creator: collectionTx.cw721_instantiate_msg.collection_info.creator,
+      description: collectionTx.cw721_instantiate_msg.collection_info.description,
+      image: collectionTx.cw721_instantiate_msg.collection_info.image,
+      externalLink: collectionTx.cw721_instantiate_msg.collection_info.external_link,
+      royaltyAddress: collectionTx.cw721_instantiate_msg.collection_info.royalty_info?.payment_address,
+      royaltyFee: collectionTx.cw721_instantiate_msg.collection_info.royalty_info?.share,
+      whitelist: whitelistDb ? whitelistDb.address : null
+    });
+  }
+
 
   private async handleAssignMinterToCollection(
     height: number,

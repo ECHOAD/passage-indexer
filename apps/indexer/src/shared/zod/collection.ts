@@ -32,6 +32,19 @@ export const CollectionMinterTxSchema = z.object({
   cw721_instantiate_msg: z.string().nullable()
 });
 
+export const CollectionMinterTxSchema2 = z.object({
+  max_num_tokens: z.number(),
+  cw721_code_id: z.number(),
+  per_address_limit: z.number(),
+  whitelist: z.string().nullable(), // TODO: Fin correct type
+  start_time: z.string(),
+  unit_price: z.object({
+    amount: z.string(),
+    denom: z.string()
+  }),
+  cw721_instantiate_msg: z.object(CollectionTxSchema.shape)
+});
+
 export const CollectionMarketplaceTxSchema = z.object({
   cw721_address: z.string(),
   denom: z.string(),
@@ -154,6 +167,7 @@ export const WhitelistAddMembersSchema = z.object({
 });
 
 export type CollectionTx = z.infer<typeof CollectionTxSchema>;
+export type CollectionTx2 = z.infer<typeof CollectionMinterTxSchema2>;
 export type CollectionMinterTx = z.infer<typeof CollectionMinterTxSchema>;
 export type CollectionMarketplaceTx = z.infer<typeof CollectionMarketplaceTxSchema>;
 export type CollectionMetadataTx = z.infer<typeof CollectionMetadataTxSchema>;
