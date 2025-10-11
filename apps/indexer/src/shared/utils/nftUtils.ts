@@ -60,7 +60,7 @@ const getAllAttr = (
  * - If a `wasm` event with `action=instantiate_cw721_reply` exists,
  *   its `_contract_address` is used as the minter directly.
  */
-export function extractCw721AndMinterOnReply(
+export function extractMinterAndCw721OnInstantiateReply(
     events: TransactionEventWithAttributes[]
 ): { cw721: string; minter: string } {
   if (!events?.length) throw new Error("No events provided.");

@@ -280,6 +280,10 @@ export class ContractIndexer extends Indexer {
       externalLink: collectionTx.cw721_instantiate_msg.collection_info.external_link,
       royaltyAddress: collectionTx.cw721_instantiate_msg.collection_info.royalty_info?.payment_address,
       royaltyFee: collectionTx.cw721_instantiate_msg.collection_info.royalty_info?.share,
+      unitDenom: collectionTx.unit_price.denom,
+      unitPrice: collectionTx.unit_price.amount,
+      startTime: new Date(parseInt(collectionTx.start_time) / 1_000_000),
+      perAddressLimit: collectionTx.per_address_limit,
       whitelist: whitelistDb ? whitelistDb.address : null
     });
   }
