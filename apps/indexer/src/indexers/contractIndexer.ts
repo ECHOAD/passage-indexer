@@ -455,13 +455,13 @@ export class ContractIndexer extends Indexer {
     }
   }
 
-  private async insertCollectionMetadata(dbTransaction: DbTransaction, collectionMetadata: CollectionMetadataTx, mintContract: string, height: number) {
+  private async insertCollectionMetadata(dbTransaction: DbTransaction, collectionMetadata: CollectionMetadataTx, contractAddress: string, height: number) {
     const dbCollection = await dbTransaction.query.collection.findFirst({
-      where: (collection, { eq }) => eq(collection.mintContract, mintContract)
+      where: (collection, { eq }) => or(eq(collection.mintContract, contractAddress), eq(collection.address, contractAddress))
     });
 
     if (!dbCollection) {
-      throw new Error(`Collection not found for mint contract ${mintContract}`);
+      throw new Error(`Collection not found for mint contract ${contractAddress}`);
     }
 
     for (const token_metadata of collectionMetadata.upsert_token_metadatas.token_metadatas) {
