@@ -1076,7 +1076,9 @@ export class ContractIndexer extends Indexer {
   ) {
     const _metadata = NftMetadataSchema.safeParse(metadata);
     if (!_metadata.success) {
-      throw new Error(`Invalid metadata for ${dbNft.id}`);
+      //TODO: CHECK IF IS NECESSARY TO THROW AN EXCEPTION. SMART CONTRACT Recieve any value as metadata object
+      //throw new Error(`Invalid metadata for ${dbNft.id}`);
+      return;
     }
 
     const { data } = _metadata;
