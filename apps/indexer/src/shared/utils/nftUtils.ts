@@ -63,40 +63,78 @@ const getAllAttr = (
 export function extractMinterAndCw721OnInstantiateReply(
     events: TransactionEventWithAttributes[]
 ): { cw721: string; minter: string } {
+  if (!events?.length) throw new Error("No events provided.");
 
-  // 1) CW721 via reply
-  const cw721 = events
-      .filter(e => e.type === 'reply')
-      .map(e => getFirstAttr(e.attributes, '_contract_address'))
-      .find(Boolean)
+  // --- Restrict search to the same msgIndex as the reply event
+  const replyEvt = events.find(e => e.type === "reply");
+  if (!replyEvt) throw new Error("CW721 not found: no 'reply' event.");
+  const scopeMsgIndex = replyEvt.msgIndex;
 
-  if (!cw721)
-    throw new Error('CW721 not found in reply event for this message.')
+  const sameMsg = events.filter(e => e.msgIndex === scopeMsgIndex);
 
-  // 2) Minter candidates: instantiate addresses different from CW721
-  const instantiates = events
-      .filter(e => e.type === 'instantiate')
-      .map(e => ({ address: getFirstAttr(e.attributes, '_contract_address'), idx: e.index }))
-      .filter(x => x.address && x.address !== cw721) as { address: string; idx: number }[]
+  // 1️⃣ CW721 comes from the reply event
+  const minter =
+      sameMsg
+          .filter(e => e.type === "reply")
+          .map(e => getFirstAttr(e.attributes, "_contract_address"))
+          .find(Boolean) ?? undefined;
 
-  if (instantiates.length === 0)
-    throw new Error('No instantiate event different from CW721 (minter) found in this message.')
-
-  if (instantiates.length === 1)
-    return { cw721, minter: instantiates[0].address }
-
-  // 3) Disambiguate with anchor: wasm action "instantiate_cw721_reply" is emitted by MINTER
-  const minterAnchorIdx = events
-      .filter(e => e.type === 'wasm' && getFirstAttr(e.attributes, 'action') === 'instantiate_cw721_reply')
-      .map(e => e.index)
-      .sort((a,b) => a - b)[0]
-
-  if (minterAnchorIdx !== undefined) {
-    const candidate = instantiates
-        .filter(i => i.idx <= minterAnchorIdx)
-        .sort((a, b) => b.idx - a.idx)[0]
-    if (candidate) return { cw721, minter: candidate.address }
+  if (!minter) {
+    throw new Error("CW721 not found in 'reply' event for this message.");
   }
 
-  throw new Error('Ambiguity resolving minter without code_id; multiple instantiate candidates.')
+  // 2️⃣ Try to detect the minter directly via wasm anchor
+  const wasmAnchor = sameMsg.find(
+      e =>
+          e.type === "wasm" &&
+          getFirstAttr(e.attributes, "action") === "instantiate_cw721_reply"
+  );
+  const cw721 = wasmAnchor
+      ? getFirstAttr(wasmAnchor.attributes, "_contract_address")
+      : undefined;
+
+  // 3️⃣ Collect all instantiate candidates (different from cw721)
+  type CandidateMinter = { address: string; evIdx: number; attrIdx: number };
+  const instantiateCandidates: CandidateMinter[] = sameMsg
+      .filter(e => e.type === "instantiate")
+      .flatMap(e =>
+          getAllAttr(e.attributes, "_contract_address").map(a => ({
+            address: a.value,
+            evIdx: e.index,
+            attrIdx: a.attrIdx,
+          }))
+      )
+      .filter(c => c.address !== minter);
+
+  // Remove duplicates by address, keeping the first one chronologically
+  const seen = new Set<string>();
+  const uniqueCandidates: CandidateMinter[] = instantiateCandidates.filter(c => {
+    if (seen.has(c.address)) return false;
+    seen.add(c.address);
+    return true;
+  });
+
+  // 4️⃣ If wasm anchor was found, use it as the minter (most reliable source)
+  if (cw721) {
+    return { cw721: cw721, minter: minter };
+  }
+
+  // 5️⃣ Fallback to instantiate candidates
+  if (uniqueCandidates.length === 0) {
+    throw new Error("No instantiate candidate different from CW721 (minter) found.");
+  }
+
+  if (uniqueCandidates.length === 1) {
+    return { cw721: uniqueCandidates[0].address, minter: minter  };
+  }
+
+  // 6️⃣ Final fallback: pick the first in chronological order
+  const fallback = uniqueCandidates
+      .sort((a, b) => (a.evIdx - b.evIdx) || (a.attrIdx - b.attrIdx))[0];
+
+  if (fallback) return { cw721: fallback.address , minter:minter  };
+
+  throw new Error(
+      "Ambiguity when resolving minter without anchor; multiple instantiate candidates found."
+  );
 }
