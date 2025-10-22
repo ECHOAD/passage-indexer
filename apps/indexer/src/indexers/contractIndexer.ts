@@ -1180,31 +1180,21 @@ export class ContractIndexer extends Indexer {
     if (!whitelistAddress) throw new Error("Whitelist address not found");
     if (!admin) throw new Error("Admin not found");
 
-    // TODO: There's no way to identify the whitelist to a collection, so we're just going to assume the symbol is in the label like so
-    // TODO: PROBABLY THIS SHOULD BE REMOVED. WHITELIST DO NOT DEPEND FROM THE COLLECTION
-    const symbol = label.split("WHITELIST:")[1]?.trim(); // WHITELIST: IDX
-    const dbCollection = await dbTransaction.query.collection.findFirst({
-      where: (collection, { or, eq }) => and(or(eq(collection.creator, admin), eq(collection.minter, admin)), eq(collection.symbol, symbol))
-    });
 
-    if (!dbCollection) {
-      throw new Error(`Collection not found for admin ${admin}`);
-    }
 
     const [insertedWhitelist] = await dbTransaction
-      .insert(whitelist)
-      .values({
-        admin,
-        address: whitelistAddress,
-        collection: dbCollection.address,
-        endTime: new Date(parseInt(whitelistInfo.end_time) / 1_000_000),
-        startTime: new Date(parseInt(whitelistInfo.start_time) / 1_000_000),
-        memberLimit: whitelistInfo.member_limit,
-        numMembers: whitelistInfo.members.length,
-        perAddressLimit: whitelistInfo.per_address_limit,
-        unitPrice: parseInt(whitelistInfo.unit_price.amount)
-      })
-      .returning();
+        .insert(whitelist)
+        .values({
+          admin,
+          address: whitelistAddress,
+          endTime: new Date(parseInt(whitelistInfo.end_time) / 1_000_000),
+          startTime: new Date(parseInt(whitelistInfo.start_time) / 1_000_000),
+          memberLimit: whitelistInfo.member_limit,
+          numMembers: whitelistInfo.members.length,
+          perAddressLimit: whitelistInfo.per_address_limit,
+          unitPrice: parseInt(whitelistInfo.unit_price.amount)
+        })
+        .returning();
 
     // Insert whitelist members
     if (whitelistInfo.members.length > 0) {
