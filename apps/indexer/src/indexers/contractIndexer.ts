@@ -283,6 +283,7 @@ export class ContractIndexer extends Indexer {
       unitDenom: collectionTx.unit_price.denom,
       unitPrice: collectionTx.unit_price.amount,
       startTime: new Date(parseInt(collectionTx.start_time) / 1_000_000),
+      maxNumToken: collectionTx.max_num_tokens,
       perAddressLimit: collectionTx.per_address_limit,
       whitelist: whitelistDb ? whitelistDb.address : null
     });
@@ -1180,6 +1181,7 @@ export class ContractIndexer extends Indexer {
     if (!admin) throw new Error("Admin not found");
 
     // TODO: There's no way to identify the whitelist to a collection, so we're just going to assume the symbol is in the label like so
+    // TODO: PROBABLY THIS SHOULD BE REMOVED. WHITELIST DO NOT DEPEND FROM THE COLLECTION
     const symbol = label.split("WHITELIST:")[1]?.trim(); // WHITELIST: IDX
     const dbCollection = await dbTransaction.query.collection.findFirst({
       where: (collection, { or, eq }) => and(or(eq(collection.creator, admin), eq(collection.minter, admin)), eq(collection.symbol, symbol))

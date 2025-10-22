@@ -15,7 +15,7 @@ export const whitelist = pgTable(
     id: uuid("id").defaultRandom().primaryKey().notNull(),
     admin: varchar("admin", { length: 255 }).notNull(),
     address: varchar("address", { length: 255 }).notNull(),
-    collection: varchar("collection", { length: 255 }).notNull(),
+    collection: varchar("collection", { length: 255 }),
     endTime: timestamp("end_time", {
       withTimezone: true,
       mode: "date",

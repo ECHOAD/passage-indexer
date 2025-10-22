@@ -1,0 +1,1 @@
+ALTER TABLE "whitelist" ALTER COLUMN "collection" DROP NOT NULL;

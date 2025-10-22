@@ -1,0 +1,2665 @@
+{
+  "id": "c9b80026-1690-4ae1-961a-cec19167bb02",
+  "prevId": "a64fd2d0-b51b-407a-9d6c-571b05ae3f2f",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.address_reference": {
+      "name": "address_reference",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "transaction_id": {
+          "name": "transaction_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "message_id": {
+          "name": "message_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address": {
+          "name": "address",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "address_reference_transaction_id": {
+          "name": "address_reference_transaction_id",
+          "columns": [
+            {
+              "expression": "transaction_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "address_reference_address": {
+          "name": "address_reference_address",
+          "columns": [
+            {
+              "expression": "address",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "address_reference_transaction_id_transaction_id_fk": {
+          "name": "address_reference_transaction_id_transaction_id_fk",
+          "tableFrom": "address_reference",
+          "tableTo": "transaction",
+          "columnsFrom": [
+            "transaction_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "cascade"
+        },
+        "address_reference_message_id_message_id_fk": {
+          "name": "address_reference_message_id_message_id_fk",
+          "tableFrom": "address_reference",
+          "tableTo": "message",
+          "columnsFrom": [
+            "message_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.block": {
+      "name": "block",
+      "schema": "",
+      "columns": {
+        "height": {
+          "name": "height",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "datetime": {
+          "name": "datetime",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "hash": {
+          "name": "hash",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "proposer": {
+          "name": "proposer",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "day_id": {
+          "name": "day_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tx_count": {
+          "name": "tx_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "is_processed": {
+          "name": "is_processed",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "total_tx_count": {
+          "name": "total_tx_count",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "block_datetime": {
+          "name": "block_datetime",
+          "columns": [
+            {
+              "expression": "datetime",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "block_day_id": {
+          "name": "block_day_id",
+          "columns": [
+            {
+              "expression": "day_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "block_height_is_processed": {
+          "name": "block_height_is_processed",
+          "columns": [
+            {
+              "expression": "height",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "is_processed",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "block_height_where_is_processed_false": {
+          "name": "block_height_where_is_processed_false",
+          "columns": [
+            {
+              "expression": "height",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "is_processed = false",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "block_day_id_day_id_fk": {
+          "name": "block_day_id_day_id_fk",
+          "tableFrom": "block",
+          "tableTo": "day",
+          "columnsFrom": [
+            "day_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.block_event": {
+      "name": "block_event",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "height": {
+          "name": "height",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source": {
+          "name": "source",
+          "type": "block_event_source",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "index": {
+          "name": "index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "block_event_height_index": {
+          "name": "block_event_height_index",
+          "columns": [
+            {
+              "expression": "height",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "block_event_height_block_height_fk": {
+          "name": "block_event_height_block_height_fk",
+          "tableFrom": "block_event",
+          "tableTo": "block",
+          "columnsFrom": [
+            "height"
+          ],
+          "columnsTo": [
+            "height"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.block_event_attribute": {
+      "name": "block_event_attribute",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "block_event_id": {
+          "name": "block_event_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "index": {
+          "name": "index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "key": {
+          "name": "key",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "block_event_attribute_block_event_id_index": {
+          "name": "block_event_attribute_block_event_id_index",
+          "columns": [
+            {
+              "expression": "block_event_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "block_event_attribute_block_event_id_block_event_id_fk": {
+          "name": "block_event_attribute_block_event_id_block_event_id_fk",
+          "tableFrom": "block_event_attribute",
+          "tableTo": "block_event",
+          "columnsFrom": [
+            "block_event_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.day": {
+      "name": "day",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "date": {
+          "name": "date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token_price": {
+          "name": "token_price",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "first_block_height": {
+          "name": "first_block_height",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_block_height": {
+          "name": "last_block_height",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_block_height_yet": {
+          "name": "last_block_height_yet",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token_price_changed": {
+          "name": "token_price_changed",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        }
+      },
+      "indexes": {
+        "day_date": {
+          "name": "day_date",
+          "columns": [
+            {
+              "expression": "date",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "day_first_block_height": {
+          "name": "day_first_block_height",
+          "columns": [
+            {
+              "expression": "first_block_height",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "day_last_block_height": {
+          "name": "day_last_block_height",
+          "columns": [
+            {
+              "expression": "last_block_height",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.message": {
+      "name": "message",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "tx_id": {
+          "name": "tx_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "height": {
+          "name": "height",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type_category": {
+          "name": "type_category",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "index": {
+          "name": "index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "index_in_block": {
+          "name": "index_in_block",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "is_processed": {
+          "name": "is_processed",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "is_notification_processed": {
+          "name": "is_notification_processed",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "amount": {
+          "name": "amount",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "data": {
+          "name": "data",
+          "type": "bytea",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "message_tx_id": {
+          "name": "message_tx_id",
+          "columns": [
+            {
+              "expression": "tx_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "message_height": {
+          "name": "message_height",
+          "columns": [
+            {
+              "expression": "height",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "message_tx_id_is_processed": {
+          "name": "message_tx_id_is_processed",
+          "columns": [
+            {
+              "expression": "tx_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "is_processed",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "message_height_is_notification_processed": {
+          "name": "message_height_is_notification_processed",
+          "columns": [
+            {
+              "expression": "height",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "is_notification_processed",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "message_height_is_notification_processed_false": {
+          "name": "message_height_is_notification_processed_false",
+          "columns": [
+            {
+              "expression": "height",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "message_height_is_notification_processed_true": {
+          "name": "message_height_is_notification_processed_true",
+          "columns": [
+            {
+              "expression": "height",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "message_tx_id_transaction_id_fk": {
+          "name": "message_tx_id_transaction_id_fk",
+          "tableFrom": "message",
+          "tableTo": "transaction",
+          "columnsFrom": [
+            "tx_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "cascade"
+        },
+        "message_height_block_height_fk": {
+          "name": "message_height_block_height_fk",
+          "tableFrom": "message",
+          "tableTo": "block",
+          "columnsFrom": [
+            "height"
+          ],
+          "columnsTo": [
+            "height"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.monitored_value": {
+      "name": "monitored_value",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "tracker": {
+          "name": "tracker",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "target": {
+          "name": "target",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "value": {
+          "name": "value",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_update_date": {
+          "name": "last_update_date",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "monitored_value_tracker_target": {
+          "name": "monitored_value_tracker_target",
+          "columns": [
+            {
+              "expression": "tracker",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "target",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.transaction": {
+      "name": "transaction",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "hash": {
+          "name": "hash",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "index": {
+          "name": "index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "height": {
+          "name": "height",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "msg_count": {
+          "name": "msg_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "multisig_threshold": {
+          "name": "multisig_threshold",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gas_used": {
+          "name": "gas_used",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "gas_wanted": {
+          "name": "gas_wanted",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fee": {
+          "name": "fee",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "memo": {
+          "name": "memo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "is_processed": {
+          "name": "is_processed",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "has_processing_error": {
+          "name": "has_processing_error",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "log": {
+          "name": "log",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "transaction_height": {
+          "name": "transaction_height",
+          "columns": [
+            {
+              "expression": "height",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "transaction_height_is_processed_has_processing_error": {
+          "name": "transaction_height_is_processed_has_processing_error",
+          "columns": [
+            {
+              "expression": "height",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "is_processed",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "has_processing_error",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "transaction_hash": {
+          "name": "transaction_hash",
+          "columns": [
+            {
+              "expression": "hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "transaction_id_has_procesing_error_false": {
+          "name": "transaction_id_has_procesing_error_false",
+          "columns": [
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "transaction_height_block_height_fk": {
+          "name": "transaction_height_block_height_fk",
+          "tableFrom": "transaction",
+          "tableTo": "block",
+          "columnsFrom": [
+            "height"
+          ],
+          "columnsTo": [
+            "height"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.transaction_event": {
+      "name": "transaction_event",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "height": {
+          "name": "height",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tx_id": {
+          "name": "tx_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "msg_index": {
+          "name": "msg_index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "index": {
+          "name": "index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "transaction_event_height_index": {
+          "name": "transaction_event_height_index",
+          "columns": [
+            {
+              "expression": "height",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "index",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "transaction_event_tx_id_index": {
+          "name": "transaction_event_tx_id_index",
+          "columns": [
+            {
+              "expression": "tx_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "index",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "transaction_event_height_block_height_fk": {
+          "name": "transaction_event_height_block_height_fk",
+          "tableFrom": "transaction_event",
+          "tableTo": "block",
+          "columnsFrom": [
+            "height"
+          ],
+          "columnsTo": [
+            "height"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "transaction_event_tx_id_transaction_id_fk": {
+          "name": "transaction_event_tx_id_transaction_id_fk",
+          "tableFrom": "transaction_event",
+          "tableTo": "transaction",
+          "columnsFrom": [
+            "tx_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.transaction_event_attribute": {
+      "name": "transaction_event_attribute",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "transaction_event_id": {
+          "name": "transaction_event_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "index": {
+          "name": "index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "key": {
+          "name": "key",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "transaction_event_attribute_transaction_event_id_index": {
+          "name": "transaction_event_attribute_transaction_event_id_index",
+          "columns": [
+            {
+              "expression": "transaction_event_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "index",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "transaction_event_attribute_transaction_event_id_transaction_event_id_fk": {
+          "name": "transaction_event_attribute_transaction_event_id_transaction_event_id_fk",
+          "tableFrom": "transaction_event_attribute",
+          "tableTo": "transaction_event",
+          "columnsFrom": [
+            "transaction_event_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.validator": {
+      "name": "validator",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "operator_address": {
+          "name": "operator_address",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "account_address": {
+          "name": "account_address",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "hex_address": {
+          "name": "hex_address",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_msg_id": {
+          "name": "created_msg_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "moniker": {
+          "name": "moniker",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "identity": {
+          "name": "identity",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "website": {
+          "name": "website",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "security_contact": {
+          "name": "security_contact",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rate": {
+          "name": "rate",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "max_rate": {
+          "name": "max_rate",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "max_change_rate": {
+          "name": "max_change_rate",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "min_self_delegation": {
+          "name": "min_self_delegation",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "keybase_username": {
+          "name": "keybase_username",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "keybase_avatar_url": {
+          "name": "keybase_avatar_url",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "validator_id": {
+          "name": "validator_id",
+          "columns": [
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "validator_operator_address": {
+          "name": "validator_operator_address",
+          "columns": [
+            {
+              "expression": "operator_address",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "validator_account_address": {
+          "name": "validator_account_address",
+          "columns": [
+            {
+              "expression": "account_address",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "validator_hex_address": {
+          "name": "validator_hex_address",
+          "columns": [
+            {
+              "expression": "hex_address",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.collection": {
+      "name": "collection",
+      "schema": "",
+      "columns": {
+        "address": {
+          "name": "address",
+          "type": "varchar(255)",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "created_height": {
+          "name": "created_height",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "symbol": {
+          "name": "symbol",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "mint_contract": {
+          "name": "mint_contract",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "market_contract": {
+          "name": "market_contract",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "minter": {
+          "name": "minter",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "creator": {
+          "name": "creator",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "image": {
+          "name": "image",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "external_link": {
+          "name": "external_link",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "royalty_address": {
+          "name": "royalty_address",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "royalty_fee": {
+          "name": "royalty_fee",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "max_num_token": {
+          "name": "max_num_token",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "per_address_limit": {
+          "name": "per_address_limit",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "whitelist": {
+          "name": "whitelist",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "start_time": {
+          "name": "start_time",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "unit_price": {
+          "name": "unit_price",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "unit_denom": {
+          "name": "unit_denom",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "collector_address": {
+          "name": "collector_address",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "trading_fee_bps": {
+          "name": "trading_fee_bps",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "min_price": {
+          "name": "min_price",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "collection_min_contract": {
+          "name": "collection_min_contract",
+          "columns": [
+            {
+              "expression": "mint_contract",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "collection_whitelist_whitelist_id_fk": {
+          "name": "collection_whitelist_whitelist_id_fk",
+          "tableFrom": "collection",
+          "tableTo": "whitelist",
+          "columnsFrom": [
+            "whitelist"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.nft": {
+      "name": "nft",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "token_id": {
+          "name": "token_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "owner": {
+          "name": "owner",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "image": {
+          "name": "image",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "description": {
+          "name": "description",
+          "type": "varchar(1000)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "external_url": {
+          "name": "external_url",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "background_color": {
+          "name": "background_color",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "animation_url": {
+          "name": "animation_url",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "youtube_url": {
+          "name": "youtube_url",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "metadata": {
+          "name": "metadata",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_on_block_height": {
+          "name": "created_on_block_height",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "minted_on_block_height": {
+          "name": "minted_on_block_height",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "airdropped_on_block_height": {
+          "name": "airdropped_on_block_height",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "migrated_on_block_height": {
+          "name": "migrated_on_block_height",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "mint_price": {
+          "name": "mint_price",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "mint_denom": {
+          "name": "mint_denom",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "collection": {
+          "name": "collection",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "active_listing_id": {
+          "name": "active_listing_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "nft_collection_token_id": {
+          "name": "nft_collection_token_id",
+          "columns": [
+            {
+              "expression": "collection",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "token_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "nft_minted_on_block_height": {
+          "name": "nft_minted_on_block_height",
+          "columns": [
+            {
+              "expression": "minted_on_block_height",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "nft_owner": {
+          "name": "nft_owner",
+          "columns": [
+            {
+              "expression": "owner",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "nft_created_on_block_height_block_height_fk": {
+          "name": "nft_created_on_block_height_block_height_fk",
+          "tableFrom": "nft",
+          "tableTo": "block",
+          "columnsFrom": [
+            "created_on_block_height"
+          ],
+          "columnsTo": [
+            "height"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        },
+        "nft_minted_on_block_height_block_height_fk": {
+          "name": "nft_minted_on_block_height_block_height_fk",
+          "tableFrom": "nft",
+          "tableTo": "block",
+          "columnsFrom": [
+            "minted_on_block_height"
+          ],
+          "columnsTo": [
+            "height"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        },
+        "nft_airdropped_on_block_height_block_height_fk": {
+          "name": "nft_airdropped_on_block_height_block_height_fk",
+          "tableFrom": "nft",
+          "tableTo": "block",
+          "columnsFrom": [
+            "airdropped_on_block_height"
+          ],
+          "columnsTo": [
+            "height"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        },
+        "nft_migrated_on_block_height_block_height_fk": {
+          "name": "nft_migrated_on_block_height_block_height_fk",
+          "tableFrom": "nft",
+          "tableTo": "block",
+          "columnsFrom": [
+            "migrated_on_block_height"
+          ],
+          "columnsTo": [
+            "height"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        },
+        "nft_collection_collection_address_fk": {
+          "name": "nft_collection_collection_address_fk",
+          "tableFrom": "nft",
+          "tableTo": "collection",
+          "columnsFrom": [
+            "collection"
+          ],
+          "columnsTo": [
+            "address"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.nft_sale": {
+      "name": "nft_sale",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "previous_owner": {
+          "name": "previous_owner",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "new_owner": {
+          "name": "new_owner",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nft": {
+          "name": "nft",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sale_price": {
+          "name": "sale_price",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sale_denom": {
+          "name": "sale_denom",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sale_block_height": {
+          "name": "sale_block_height",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "market_fee": {
+          "name": "market_fee",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "market_fee_denom": {
+          "name": "market_fee_denom",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "royalty_fee": {
+          "name": "royalty_fee",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "royalty_fee_denom": {
+          "name": "royalty_fee_denom",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "royalty_fee_address": {
+          "name": "royalty_fee_address",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "nft_sale_nft": {
+          "name": "nft_sale_nft",
+          "columns": [
+            {
+              "expression": "nft",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "nft_sale_nft_nft_id_fk": {
+          "name": "nft_sale_nft_nft_id_fk",
+          "tableFrom": "nft_sale",
+          "tableTo": "nft",
+          "columnsFrom": [
+            "nft"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "nft_sale_sale_block_height_block_height_fk": {
+          "name": "nft_sale_sale_block_height_block_height_fk",
+          "tableFrom": "nft_sale",
+          "tableTo": "block",
+          "columnsFrom": [
+            "sale_block_height"
+          ],
+          "columnsTo": [
+            "height"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.nft_bid": {
+      "name": "nft_bid",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "owner": {
+          "name": "owner",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nft": {
+          "name": "nft",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "raw_token_id": {
+          "name": "raw_token_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bid_price": {
+          "name": "bid_price",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bid_denom": {
+          "name": "bid_denom",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bid_block_height": {
+          "name": "bid_block_height",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "removed_block_height": {
+          "name": "removed_block_height",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "nft_bid_nft_nft_id_fk": {
+          "name": "nft_bid_nft_nft_id_fk",
+          "tableFrom": "nft_bid",
+          "tableTo": "nft",
+          "columnsFrom": [
+            "nft"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "nft_bid_bid_block_height_block_height_fk": {
+          "name": "nft_bid_bid_block_height_block_height_fk",
+          "tableFrom": "nft_bid",
+          "tableTo": "block",
+          "columnsFrom": [
+            "bid_block_height"
+          ],
+          "columnsTo": [
+            "height"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "nft_bid_removed_block_height_block_height_fk": {
+          "name": "nft_bid_removed_block_height_block_height_fk",
+          "tableFrom": "nft_bid",
+          "tableTo": "block",
+          "columnsFrom": [
+            "removed_block_height"
+          ],
+          "columnsTo": [
+            "height"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.nft_collection_bid": {
+      "name": "nft_collection_bid",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "owner": {
+          "name": "owner",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "collection": {
+          "name": "collection",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "units": {
+          "name": "units",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "funds_amount": {
+          "name": "funds_amount",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "funds_denom": {
+          "name": "funds_denom",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bid_price": {
+          "name": "bid_price",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bid_denom": {
+          "name": "bid_denom",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bid_block_height": {
+          "name": "bid_block_height",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "removed_block_height": {
+          "name": "removed_block_height",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "nft_collection_bid_owner_collection_where_removed_block_height_null": {
+          "name": "nft_collection_bid_owner_collection_where_removed_block_height_null",
+          "columns": [
+            {
+              "expression": "owner",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "collection",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"nft_collection_bid\".\"removed_block_height\" is null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "nft_collection_bid_collection_collection_address_fk": {
+          "name": "nft_collection_bid_collection_collection_address_fk",
+          "tableFrom": "nft_collection_bid",
+          "tableTo": "collection",
+          "columnsFrom": [
+            "collection"
+          ],
+          "columnsTo": [
+            "address"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        },
+        "nft_collection_bid_bid_block_height_block_height_fk": {
+          "name": "nft_collection_bid_bid_block_height_block_height_fk",
+          "tableFrom": "nft_collection_bid",
+          "tableTo": "block",
+          "columnsFrom": [
+            "bid_block_height"
+          ],
+          "columnsTo": [
+            "height"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "nft_collection_bid_removed_block_height_block_height_fk": {
+          "name": "nft_collection_bid_removed_block_height_block_height_fk",
+          "tableFrom": "nft_collection_bid",
+          "tableTo": "block",
+          "columnsFrom": [
+            "removed_block_height"
+          ],
+          "columnsTo": [
+            "height"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.nft_listing": {
+      "name": "nft_listing",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "owner": {
+          "name": "owner",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nft": {
+          "name": "nft",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "raw_token_id": {
+          "name": "raw_token_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "for_sale_price": {
+          "name": "for_sale_price",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "for_sale_denom": {
+          "name": "for_sale_denom",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "for_sale_block_height": {
+          "name": "for_sale_block_height",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "unlisted_block_height": {
+          "name": "unlisted_block_height",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "nft_listing_nft_nft_id_fk": {
+          "name": "nft_listing_nft_nft_id_fk",
+          "tableFrom": "nft_listing",
+          "tableTo": "nft",
+          "columnsFrom": [
+            "nft"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "nft_listing_for_sale_block_height_block_height_fk": {
+          "name": "nft_listing_for_sale_block_height_block_height_fk",
+          "tableFrom": "nft_listing",
+          "tableTo": "block",
+          "columnsFrom": [
+            "for_sale_block_height"
+          ],
+          "columnsTo": [
+            "height"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "nft_listing_unlisted_block_height_block_height_fk": {
+          "name": "nft_listing_unlisted_block_height_block_height_fk",
+          "tableFrom": "nft_listing",
+          "tableTo": "block",
+          "columnsFrom": [
+            "unlisted_block_height"
+          ],
+          "columnsTo": [
+            "height"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.nft_transfer": {
+      "name": "nft_transfer",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "from_owner": {
+          "name": "from_owner",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "to_owner": {
+          "name": "to_owner",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "transferred_on_block_height": {
+          "name": "transferred_on_block_height",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nft_id": {
+          "name": "nft_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "nft_transfer_nft_id_nft_id_fk": {
+          "name": "nft_transfer_nft_id_nft_id_fk",
+          "tableFrom": "nft_transfer",
+          "tableTo": "nft",
+          "columnsFrom": [
+            "nft_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.whitelist": {
+      "name": "whitelist",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "admin": {
+          "name": "admin",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "address": {
+          "name": "address",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "collection": {
+          "name": "collection",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "end_time": {
+          "name": "end_time",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "start_time": {
+          "name": "start_time",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "member_limit": {
+          "name": "member_limit",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "num_members": {
+          "name": "num_members",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "per_address_limit": {
+          "name": "per_address_limit",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "unit_price": {
+          "name": "unit_price",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "whitelist_collection": {
+          "name": "whitelist_collection",
+          "columns": [
+            {
+              "expression": "collection",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.whitelist_member": {
+      "name": "whitelist_member",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "address": {
+          "name": "address",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "whitelist": {
+          "name": "whitelist",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "whitelist_member_address": {
+          "name": "whitelist_member_address",
+          "columns": [
+            {
+              "expression": "address",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "whitelist_member_whitelist_whitelist_id_fk": {
+          "name": "whitelist_member_whitelist_whitelist_id_fk",
+          "tableFrom": "whitelist_member",
+          "tableTo": "whitelist",
+          "columnsFrom": [
+            "whitelist"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.nft_to_trait": {
+      "name": "nft_to_trait",
+      "schema": "",
+      "columns": {
+        "nft_id": {
+          "name": "nft_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "trait_id": {
+          "name": "trait_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "nft_to_trait_nft_id": {
+          "name": "nft_to_trait_nft_id",
+          "columns": [
+            {
+              "expression": "nft_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "nft_to_trait_trait_id": {
+          "name": "nft_to_trait_trait_id",
+          "columns": [
+            {
+              "expression": "trait_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "nft_to_trait_nft_id_nft_id_fk": {
+          "name": "nft_to_trait_nft_id_nft_id_fk",
+          "tableFrom": "nft_to_trait",
+          "tableTo": "nft",
+          "columnsFrom": [
+            "nft_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        },
+        "nft_to_trait_trait_id_nft_trait_id_fk": {
+          "name": "nft_to_trait_trait_id_nft_trait_id_fk",
+          "tableFrom": "nft_to_trait",
+          "tableTo": "nft_trait",
+          "columnsFrom": [
+            "trait_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {
+        "nft_to_trait_nft_id_trait_id_pk": {
+          "name": "nft_to_trait_nft_id_trait_id_pk",
+          "columns": [
+            "nft_id",
+            "trait_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.nft_trait": {
+      "name": "nft_trait",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "collection": {
+          "name": "collection",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "display_type": {
+          "name": "display_type",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "trait_type": {
+          "name": "trait_type",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "trait_value": {
+          "name": "trait_value",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "nft_trait_collection": {
+          "name": "nft_trait_collection",
+          "columns": [
+            {
+              "expression": "collection",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "nft_trait_collection_type_value": {
+          "name": "nft_trait_collection_type_value",
+          "columns": [
+            {
+              "expression": "collection",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "trait_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "trait_value",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "nft_trait_type_value": {
+          "name": "nft_trait_type_value",
+          "columns": [
+            {
+              "expression": "trait_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "trait_value",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "nft_trait_collection_collection_address_fk": {
+          "name": "nft_trait_collection_collection_address_fk",
+          "tableFrom": "nft_trait",
+          "tableTo": "collection",
+          "columnsFrom": [
+            "collection"
+          ],
+          "columnsTo": [
+            "address"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.block_event_source": {
+      "name": "block_event_source",
+      "schema": "public",
+      "values": [
+        "begin_block_events",
+        "end_block_events"
+      ]
+    }
+  },
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}
