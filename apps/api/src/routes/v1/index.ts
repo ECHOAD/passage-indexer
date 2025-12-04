@@ -11,5 +11,6 @@ import collectionTraits from "./collections/collectionTraits";
 import collectionTraitsStats from "./collections/collectionTraitsStats";
 import statsSummary from "./stats/summary";
 import graph from "./stats/graph";
+import staking from "./staking";
 
-export default [collections, collectionById, collectionNfts, collectionNftById, nftsByOwner, accountSummary, orders, nfts, ecosystems, collectionTraits, collectionTraitsStats, statsSummary, graph];
+export default [collections, collectionById, collectionNfts, collectionNftById, nftsByOwner, accountSummary, orders, nfts, ecosystems, collectionTraits, collectionTraitsStats, statsSummary, graph, staking];

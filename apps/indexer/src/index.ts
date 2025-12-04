@@ -14,6 +14,7 @@ import { env } from "./shared/utils/env";
 import { nodeAccessor } from "./chain/nodeAccessor";
 import { addressBalanceMonitor } from "./monitors";
 import { sleep } from "./shared/utils/delay";
+import { createStakingSnapshots } from "./schedulers/stakingSnapshotScheduler";
 
 const app = express();
 
@@ -85,6 +86,7 @@ function startScheduler() {
     measureDuration: true
   });
   scheduler.registerTask("Address Balance Monitor", () => addressBalanceMonitor.run(), "10 minutes");
+  scheduler.registerTask("Create Staking Snapshots", createStakingSnapshots, "1 hour", false);
 
   if (!activeChain.startHeight) {
     scheduler.registerTask("Sync Keybase Info", fetchValidatorKeybaseInfos, "6 hours", true, {
