@@ -10,6 +10,7 @@ import {
   index,
 } from "drizzle-orm/pg-core";
 import { block } from "./block";
+import { stakeRewardAccount } from "./stakeRewardAccount";
 
 export const stakeVault = pgTable(
   "stake_vault",
@@ -45,6 +46,7 @@ export const stakeVaultRelations = relations(stakeVault, ({ one, many }) => ({
     fields: [stakeVault.createdHeight],
     references: [block.height],
   }),
+  rewardAccounts: many(stakeRewardAccount),
 }));
 
 export type StakeVault = typeof stakeVault.$inferSelect;

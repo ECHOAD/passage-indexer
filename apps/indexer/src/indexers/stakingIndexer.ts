@@ -337,7 +337,7 @@ export class StakingIndexer extends Indexer {
       factoryAddress,
       createdHeight: height,
       createdBy: admin,
-      unstakingDurationSec: BigInt(unstakingDurationSec),
+      unstakingDurationSec,
       collections,
       createdAt: block.datetime,
     };
@@ -415,7 +415,7 @@ export class StakingIndexer extends Indexer {
       rewardAssetType,
       rewardAssetDenom,
       periodStart,
-      durationSec: BigInt(durationSec),
+      durationSec,
       periodEnd,
       totalFunds,
       remainingFunds: totalFunds,
@@ -697,8 +697,8 @@ export class StakingIndexer extends Indexer {
     const assetDenom = isNative ? rewardAsset.native : rewardAsset.cw20;
 
     const periodStart = new Date(parseInt(createRewardAccountMsg.period_start) / 1_000_000);
-    const durationSec = BigInt(createRewardAccountMsg.duration_sec);
-    const periodEnd = new Date(periodStart.getTime() + Number(durationSec) * 1000);
+    const durationSec = parseInt(createRewardAccountMsg.duration_sec);
+    const periodEnd = new Date(periodStart.getTime() + durationSec * 1000);
 
     // Obtener fondos iniciales
     const funds = decodedMessage.funds?.[0];

@@ -13,4 +13,4 @@ import statsSummary from "./stats/summary";
 import graph from "./stats/graph";
 import staking from "./staking";
 
-export default [collections, collectionById, collectionNfts, collectionNftById, nftsByOwner, accountSummary, orders, nfts, ecosystems, collectionTraits, collectionTraitsStats, statsSummary, graph, staking];
+export default [collections, collectionById, collectionNfts, collectionNftById, nftsByOwner, accountSummary, orders, nfts, ecosystems, collectionTraits, collectionTraitsStats, statsSummary, graph, ...staking];

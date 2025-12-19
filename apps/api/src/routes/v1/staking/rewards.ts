@@ -118,7 +118,7 @@ const getVaultRewardsSummaryRoute = createRoute({
 
 export default new OpenAPIHono()
   .openapi(getPendingRewardsRoute, async (c) => {
-    const { address } = c.req.valid("params");
+    const { address } = c.req.valid("param");
     const { vaultAddress, rewardAccountAddress } = c.req.valid("query");
 
     const rewards = await stakingService.getPendingRewards(address, vaultAddress, rewardAccountAddress);
@@ -126,7 +126,7 @@ export default new OpenAPIHono()
     return c.json(rewards, 200);
   })
   .openapi(getRewardHistoryRoute, async (c) => {
-    const { address } = c.req.valid("params");
+    const { address } = c.req.valid("param");
     const { vaultAddress, rewardAccountAddress, fromDate, toDate, limit, offset } = c.req.valid("query");
 
     const history = await stakingService.getRewardHistory(address, {
@@ -141,7 +141,7 @@ export default new OpenAPIHono()
     return c.json(history, 200);
   })
   .openapi(getVaultRewardsSummaryRoute, async (c) => {
-    const { vaultAddress } = c.req.valid("params");
+    const { vaultAddress } = c.req.valid("param");
 
     const rewardAccounts = await stakingService.getRewardAccounts(vaultAddress);
     const stats = await stakingService.getVaultStats(vaultAddress);

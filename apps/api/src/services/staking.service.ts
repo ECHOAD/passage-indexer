@@ -96,21 +96,16 @@ export class StakingService {
       conditions.push(eq(stakedNft.collectionAddress, filters.collectionAddress));
     }
 
-    let query = db
+    const baseQuery = db
       .select()
       .from(stakedNft)
       .where(and(...conditions))
       .orderBy(desc(stakedNft.stakedAt));
 
-    if (filters?.limit) {
-      query = query.limit(filters.limit);
-    }
+    const queryWithLimit = filters?.limit ? baseQuery.limit(filters.limit) : baseQuery;
+    const finalQuery = filters?.offset ? queryWithLimit.offset(filters.offset) : queryWithLimit;
 
-    if (filters?.offset) {
-      query = query.offset(filters.offset);
-    }
-
-    return await query;
+    return await finalQuery;
   }
 
   // Obtener recompensas pendientes (estimadas desde snapshots)
@@ -199,21 +194,16 @@ export class StakingService {
       conditions.push(lte(rewardClaim.claimedAt, filters.toDate));
     }
 
-    let query = db
+    const baseQuery = db
       .select()
       .from(rewardClaim)
       .where(and(...conditions))
       .orderBy(desc(rewardClaim.claimedAt));
 
-    if (filters?.limit) {
-      query = query.limit(filters.limit);
-    }
+    const queryWithLimit = filters?.limit ? baseQuery.limit(filters.limit) : baseQuery;
+    const finalQuery = filters?.offset ? queryWithLimit.offset(filters.offset) : queryWithLimit;
 
-    if (filters?.offset) {
-      query = query.offset(filters.offset);
-    }
-
-    const claims = await query;
+    const claims = await finalQuery;
 
     // Obtener información adicional de reward accounts
     const rewardAccountAddresses = [...new Set(claims.map((c) => c.rewardAccountAddress))];
@@ -424,21 +414,16 @@ export class StakingService {
       conditions.push(lte(stakingEvent.blockTime, filters.toDate));
     }
 
-    let query = db
+    const baseQuery = db
       .select()
       .from(stakingEvent)
       .where(conditions.length > 0 ? and(...conditions) : undefined)
       .orderBy(desc(stakingEvent.blockTime));
 
-    if (filters?.limit) {
-      query = query.limit(filters.limit);
-    }
+    const queryWithLimit = filters?.limit ? baseQuery.limit(filters.limit) : baseQuery;
+    const finalQuery = filters?.offset ? queryWithLimit.offset(filters.offset) : queryWithLimit;
 
-    if (filters?.offset) {
-      query = query.offset(filters.offset);
-    }
-
-    return await query;
+    return await finalQuery;
   }
 }
 

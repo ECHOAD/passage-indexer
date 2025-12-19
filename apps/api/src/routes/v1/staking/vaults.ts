@@ -108,7 +108,7 @@ export default new OpenAPIHono()
     return c.json(vaults, 200);
   })
   .openapi(getVaultByIdRoute, async (c) => {
-    const { address } = c.req.param("address");
+    const address = c.req.param("address");
     const vault = await stakingService.getVaults(address);
 
     if (!vault) {

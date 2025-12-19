@@ -89,7 +89,7 @@ const getStakedNftsByVaultRoute = createRoute({
 
 export default new OpenAPIHono()
   .openapi(getStakedNftsByUserRoute, async (c) => {
-    const { address } = c.req.valid("params");
+    const { address } = c.req.valid("param");
     const { vaultAddress, collectionAddress } = c.req.valid("query");
 
     const stakedNfts = await stakingService.getStakedNftsByUser(address, {
@@ -100,7 +100,7 @@ export default new OpenAPIHono()
     return c.json(stakedNfts, 200);
   })
   .openapi(getStakedNftsByVaultRoute, async (c) => {
-    const { vaultAddress } = c.req.valid("params");
+    const { vaultAddress } = c.req.valid("param");
     const { collectionAddress, limit, offset } = c.req.valid("query");
 
     const stakedNfts = await stakingService.getStakedNftsByVault(vaultAddress, {

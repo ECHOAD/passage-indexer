@@ -161,7 +161,7 @@ const getTopStakersRoute = createRoute({
 
 export default new OpenAPIHono()
   .openapi(getUserMetricsRoute, async (c) => {
-    const { address } = c.req.valid("params");
+    const { address } = c.req.valid("param");
     const { vaultAddress, fromDate, toDate, groupBy } = c.req.valid("query");
 
     const stats = await stakingService.getUserStakingStats(address);
@@ -185,7 +185,7 @@ export default new OpenAPIHono()
     );
   })
   .openapi(getVaultMetricsRoute, async (c) => {
-    const { vaultAddress } = c.req.valid("params");
+    const { vaultAddress } = c.req.valid("param");
     const { fromDate, toDate, groupBy, rewardAccountAddress } = c.req.valid("query");
 
     const metrics = await stakingService.getStakingMetrics(vaultAddress, {
@@ -199,12 +199,12 @@ export default new OpenAPIHono()
     return c.json({ metrics }, 200);
   })
   .openapi(getVaultStatsRoute, async (c) => {
-    const { vaultAddress } = c.req.valid("params");
+    const { vaultAddress } = c.req.valid("param");
     const stats = await stakingService.getVaultStats(vaultAddress);
     return c.json(stats, 200);
   })
   .openapi(getTopStakersRoute, async (c) => {
-    const { vaultAddress } = c.req.valid("params");
+    const { vaultAddress } = c.req.valid("param");
     const { limit } = c.req.valid("query");
     const topStakers = await stakingService.getTopStakers(vaultAddress, limit);
     return c.json(topStakers, 200);

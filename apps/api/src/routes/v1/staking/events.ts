@@ -99,8 +99,10 @@ const getVaultEventsRoute = createRoute({
 
 export default new OpenAPIHono()
   .openapi(getUserEventsRoute, async (c) => {
-    const { address } = c.req.valid("params");
-    const { vaultAddress, eventType, fromDate, toDate, limit, offset } = c.req.valid("query");
+    const params = c.req.valid("param");
+    const query = c.req.valid("query");
+    const address = params.address;
+    const { vaultAddress, eventType, fromDate, toDate, limit, offset } = query;
 
     const events = await stakingService.getStakingEvents({
       userAddress: address,
@@ -130,8 +132,10 @@ export default new OpenAPIHono()
     );
   })
   .openapi(getVaultEventsRoute, async (c) => {
-    const { vaultAddress } = c.req.valid("params");
-    const { userAddress, eventType, fromDate, toDate, limit, offset } = c.req.valid("query");
+    const params = c.req.valid("param");
+    const query = c.req.valid("query");
+    const vaultAddress = params.vaultAddress;
+    const { userAddress, eventType, fromDate, toDate, limit, offset } = query;
 
     const events = await stakingService.getStakingEvents({
       vaultAddress,
