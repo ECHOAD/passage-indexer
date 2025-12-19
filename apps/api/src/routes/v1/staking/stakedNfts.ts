@@ -3,7 +3,8 @@ import { StakingService } from "@src/services/staking.service";
 
 const stakingService = new StakingService();
 
-\const collectionSchema = z.object({
+// Schema para la colección del NFT
+const collectionSchema = z.object({
   id: z.string().openapi({ description: "Collection UUID", example: "550e8400-e29b-41d4-a716-446655440000" }),
   address: z.string().openapi({ description: "Collection contract address", example: "passage1..." }),
   name: z.string().nullable().openapi({ description: "Collection name", example: "My NFT Collection" }),
@@ -12,7 +13,8 @@ const stakingService = new StakingService();
   image: z.string().nullable().openapi({ description: "Collection image URL", example: "ipfs://..." }),
 });
 
-\const nftSchema = z.object({
+// Schema para la información completa del NFT
+const nftSchema = z.object({
   id: z.string().openapi({ description: "NFT UUID", example: "550e8400-e29b-41d4-a716-446655440000" }),
   tokenId: z.number().openapi({ description: "Token ID number", example: 1 }),
   owner: z.string().nullable().openapi({ description: "Current owner address", example: "passage1..." }),
