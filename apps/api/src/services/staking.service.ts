@@ -96,16 +96,21 @@ export class StakingService {
       conditions.push(eq(stakedNft.collectionAddress, filters.collectionAddress));
     }
 
-    const baseQuery = db
-      .select()
-      .from(stakedNft)
-      .where(and(...conditions))
-      .orderBy(desc(stakedNft.stakedAt));
-
-    const queryWithLimit = filters?.limit ? baseQuery.limit(filters.limit) : baseQuery;
-    const finalQuery = filters?.offset ? queryWithLimit.offset(filters.offset) : queryWithLimit;
-
-    return await finalQuery;
+    return await db.query.stakedNft.findMany({
+      where: and(...conditions),
+      orderBy: desc(stakedNft.stakedAt),
+      limit: filters?.limit,
+      offset: filters?.offset,
+      with: {
+        nft: {
+          with: {
+            collection: true,
+          },
+        },
+        vault: true,
+        collection: true,
+      },
+    });
   }
 
   // Obtener recompensas pendientes (estimadas desde snapshots)
