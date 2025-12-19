@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "webpack --mode development --config webpack.dev.js --watch",
     "build": "webpack --config webpack.prod.js",
-    "test": "jest"
+    "test": "jest",
+    "reindex-from": "node dist/reindexFromHeight.js"
   },
   "author": "",
   "license": "ISC",

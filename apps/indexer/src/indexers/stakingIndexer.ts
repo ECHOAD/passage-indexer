@@ -45,6 +45,33 @@ function createZodHandler<T>(type: z.ZodType<T>, handler: (data: T) => Promise<v
   return { type, handler };
 }
 
+const WASM_EVENT_PREFIX = "wasm-";
+
+// Some chains prefix custom wasm events with "wasm-".
+function getStakingEventTypeCandidates(eventType: string): string[] {
+  if (eventType === "wasm" || eventType === "instantiate" || eventType === "execute" || eventType === "message") {
+    return [eventType];
+  }
+
+  if (eventType.startsWith(WASM_EVENT_PREFIX)) {
+    return [eventType, eventType.slice(WASM_EVENT_PREFIX.length)];
+  }
+
+  return [eventType, `${WASM_EVENT_PREFIX}${eventType}`];
+}
+
+function findStakingEvent(
+  events: TransactionEventWithAttributes[],
+  eventType: string
+): TransactionEventWithAttributes | undefined {
+  const candidates = getStakingEventTypeCandidates(eventType);
+  return events.find((e) => candidates.includes(e.type));
+}
+
+function hasStakingEventType(events: TransactionEventWithAttributes[], eventType: string): boolean {
+  return Boolean(findStakingEvent(events, eventType));
+}
+
 // Helper para obtener valores de eventos de staking
 // Extiende getEventAttributeValue para soportar tipos de eventos de staking
 function getStakingEventAttribute(
@@ -52,15 +79,20 @@ function getStakingEventAttribute(
   eventType: string,
   attributeKey: string
 ): string | null {
-  const event = events.find((e) => e.type === eventType);
+  const event = findStakingEvent(events, eventType);
   if (!event) return null;
   
   const attr = event.attributes.find((attr) => attr.key === attributeKey && attr.value);
   return attr?.value ?? null;
 }
 
-// Helper para obtener el address del contrato desde eventos wasm
 function getContractAddressFromEvents(events: TransactionEventWithAttributes[]): string | null {
+  const executeEvent = findStakingEvent(events, "execute");
+  if (executeEvent) {
+    const contractAddr = getStakingEventAttribute([executeEvent], "execute", "_contract_address");
+    if (contractAddr) return contractAddr;
+  }
+
   // Buscar en eventos wasm
   const wasmEvent = events.find((e) => e.type === "wasm");
   if (wasmEvent) {
@@ -78,9 +110,9 @@ function getContractAddressFromEvents(events: TransactionEventWithAttributes[]):
   return null;
 }
 
-// Helper para obtener todos los eventos de un tipo
 function getStakingEvents(events: TransactionEventWithAttributes[], eventType: string): TransactionEventWithAttributes[] {
-  return events.filter((e) => e.type === eventType);
+  const candidates = getStakingEventTypeCandidates(eventType);
+  return events.filter((e) => candidates.includes(e.type));
 }
 
 export class StakingIndexer extends Indexer {
@@ -119,25 +151,23 @@ export class StakingIndexer extends Indexer {
     }
 
     // Detectar por eventos
-    const eventTypes = new Set(txEvents.map((e) => e.type));
-
-    if (eventTypes.has("create-vault")) {
+    if (hasStakingEventType(txEvents, "create-vault")) {
       return "vault_factory";
     }
 
     if (
-      eventTypes.has("create-reward-account") ||
-      eventTypes.has("claim-rewards") ||
-      eventTypes.has("claim-unstaked")
+      hasStakingEventType(txEvents, "create-reward-account") ||
+      hasStakingEventType(txEvents, "claim-rewards") ||
+      hasStakingEventType(txEvents, "claim-unstaked")
     ) {
       return "nft_vault";
     }
 
     if (
-      eventTypes.has("stake-change") ||
-      eventTypes.has("update-rewards") ||
-      eventTypes.has("update-user-rewards") ||
-      eventTypes.has("set-config")
+      hasStakingEventType(txEvents, "stake-change") ||
+      hasStakingEventType(txEvents, "update-rewards") ||
+      hasStakingEventType(txEvents, "update-user-rewards") ||
+      hasStakingEventType(txEvents, "set-config")
     ) {
       return "stake_rewards";
     }
@@ -164,11 +194,37 @@ export class StakingIndexer extends Indexer {
       return; // No es JSON válido, no es un contrato de staking
     }
 
+    const vaultInstantiateResult = NftVaultInstantiateSchema.safeParse(jsonData);
+    if (vaultInstantiateResult.success) {
+      await this.handleVaultCreation(
+        contractAddress,
+        decodedMessage.admin || decodedMessage.sender,
+        vaultInstantiateResult.data,
+        height,
+        dbTransaction,
+        txEvents
+      );
+      return;
+    }
+
+    const stakeRewardsInstantiateResult = StakeRewardsInstantiateSchema.safeParse(jsonData);
+    if (stakeRewardsInstantiateResult.success) {
+      await this.handleStakeRewardsInstantiate(
+        contractAddress,
+        stakeRewardsInstantiateResult.data.stake,
+        stakeRewardsInstantiateResult.data,
+        height,
+        dbTransaction,
+        decodedMessage
+      );
+      return;
+    }
+
     // Detectar tipo de contrato
     const contractType = await this.identifyContractType(contractAddress, txEvents);
 
     // Verificar si es creación de vault desde factory
-    const createVaultEvent = txEvents.find((e) => e.type === "create-vault");
+    const createVaultEvent = findStakingEvent(txEvents, "create-vault");
     if (createVaultEvent) {
       const vaultAddress = getStakingEventAttribute([createVaultEvent], "create-vault", "address");
       if (vaultAddress) {
@@ -185,7 +241,7 @@ export class StakingIndexer extends Indexer {
     }
 
     // Verificar si es creación de reward account desde vault
-    const createRewardAccountEvent = txEvents.find((e) => e.type === "create-reward-account");
+    const createRewardAccountEvent = findStakingEvent(txEvents, "create-reward-account");
     if (createRewardAccountEvent) {
       const rewardAccountAddress = getStakingEventAttribute([createRewardAccountEvent], "create-reward-account", "address");
       if (rewardAccountAddress) {
@@ -205,7 +261,7 @@ export class StakingIndexer extends Indexer {
     }
 
     // Verificar si es creación de Stake Rewards
-    const setConfigEvent = txEvents.find((e) => e.type === "set-config");
+    const setConfigEvent = findStakingEvent(txEvents, "set-config");
     if (setConfigEvent && contractType === "stake_rewards") {
       const stakeAddress = getStakingEventAttribute([setConfigEvent], "set-config", "stake");
       if (stakeAddress) {
@@ -217,7 +273,7 @@ export class StakingIndexer extends Indexer {
           jsonData,
           height,
           dbTransaction,
-          txEvents
+          decodedMessage
         );
         return;
       }
@@ -317,7 +373,10 @@ export class StakingIndexer extends Indexer {
 
     // Obtener factory address del evento o del contexto
     // El factory es quien ejecutó el mensaje de instantiate
-    const factoryAddress = getContractAddressFromEvents(txEvents) || "";
+    const factoryAddress =
+      getStakingEventAttribute(txEvents, "create-vault", "_contract_address") ||
+      getStakingEventAttribute(txEvents, "execute", "_contract_address") ||
+      "";
 
     // Parsear configuración
     let collections: string[] = [];
@@ -344,6 +403,9 @@ export class StakingIndexer extends Indexer {
 
     await dbTransaction.insert(stakeVault).values(vaultData);
     this.knownVaultAddresses.set(vaultAddress, factoryAddress);
+    if (factoryAddress) {
+      this.vaultFactoryAddresses.add(factoryAddress);
+    }
   }
 
   // Handler para creación de reward account
@@ -368,7 +430,7 @@ export class StakingIndexer extends Indexer {
     if (!block) throw new Error(`Block ${height} not found`);
 
     // Obtener configuración del evento set-config
-    const setConfigEvent = txEvents.find((e) => e.type === "set-config");
+    const setConfigEvent = findStakingEvent(txEvents, "set-config");
     if (!setConfigEvent) return;
 
     const rewardAssetStr = getStakingEventAttribute([setConfigEvent], "set-config", "reward_asset");
@@ -432,11 +494,54 @@ export class StakingIndexer extends Indexer {
     initMsg: any,
     height: number,
     dbTransaction: DbTransaction,
-    txEvents: TransactionEventWithAttributes[]
+    decodedMessage: MsgInstantiateContract
   ) {
-    // Similar a handleRewardAccountCreation pero desde el contexto de instantiate
-    // Este método se llama cuando detectamos un set-config de stake rewards
-    // La creación real se maneja en handleRewardAccountCreation
+    const existing = await dbTransaction.query.stakeRewardAccount.findFirst({
+      where: (account, { eq }) => eq(account.address, rewardAccountAddress),
+    });
+    if (existing) return;
+
+    const vault = await dbTransaction.query.stakeVault.findFirst({
+      where: (vault, { eq }) => eq(vault.address, vaultAddress),
+    });
+    if (!vault) return;
+
+    const block = await dbTransaction.query.block.findFirst({
+      where: (block, { eq }) => eq(block.height, height),
+    });
+    if (!block) throw new Error(`Block ${height} not found`);
+
+    const rewardAsset = initMsg.reward_asset;
+    if (!rewardAsset) return;
+
+    const isNative = rewardAsset.native !== undefined;
+    const assetType = isNative ? "native" : "cw20";
+    const assetDenom = isNative ? rewardAsset.native : rewardAsset.cw20;
+
+    const periodStartRaw = initMsg.period_start;
+    if (periodStartRaw == null) return;
+
+    const periodStart = new Date(parseInt(periodStartRaw) / 1_000_000);
+    const durationSec = parseInt(initMsg.duration_sec);
+    const periodEnd = new Date(periodStart.getTime() + durationSec * 1000);
+
+    const funds = decodedMessage.funds?.[0];
+    const totalFunds = funds ? funds.amount : "0";
+
+    const rewardAccountData: StakeRewardAccountInsert = {
+      address: rewardAccountAddress,
+      vaultAddress,
+      rewardAssetType: assetType,
+      rewardAssetDenom: assetDenom,
+      periodStart,
+      durationSec,
+      periodEnd,
+      totalFunds,
+      remainingFunds: totalFunds,
+    };
+
+    await dbTransaction.insert(stakeRewardAccount).values(rewardAccountData);
+    this.knownRewardAccountAddresses.set(rewardAccountAddress, vaultAddress);
   }
 
   // Handler para stake
@@ -620,7 +725,7 @@ export class StakingIndexer extends Indexer {
     if (!block) throw new Error(`Block ${height} not found`);
 
     // Buscar evento claim-unstaked
-    const claimEvent = txEvents.find((e) => e.type === "claim-unstaked");
+    const claimEvent = findStakingEvent(txEvents, "claim-unstaked");
     if (!claimEvent) return; // No es un claim
 
     // Extraer NFTs del evento (formato: "collection1-tokenId1,collection2-tokenId2")
@@ -767,7 +872,11 @@ export class StakingIndexer extends Indexer {
 
     // Buscar transferencias de tokens (native o CW20)
     const transferEvents = txEvents.filter(
-      (e) => e.type === "transfer" || e.type === "coin_received" || e.type === "coin_spent"
+      (e) =>
+        e.type === "transfer" ||
+        e.type === "wasm-transfer" ||
+        e.type === "coin_received" ||
+        e.type === "coin_spent"
     );
 
     // Procesar cada reward account que emitió eventos
@@ -784,7 +893,11 @@ export class StakingIndexer extends Indexer {
       // Esto es complejo porque múltiples reward accounts pueden emitir eventos
       // Por ahora, intentamos obtenerlo de los eventos wasm en el contexto del mensaje
       // Una mejor solución sería rastrear qué mensajes ejecutaron qué contratos
-      const rewardAccountAddress = getContractAddressFromEvents(txEvents);
+      const rewardAccountAddress =
+        getStakingEventAttribute([updateRewardsEvent], "update-rewards", "_contract_address") ||
+        getStakingEventAttribute([updateUserRewardsEvent], "update-user-rewards", "_contract_address") ||
+        getStakingEventAttribute(txEvents, "execute", "_contract_address") ||
+        getContractAddressFromEvents(txEvents);
 
       if (!rewardAccountAddress) continue;
 

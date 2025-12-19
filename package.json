@@ -12,7 +12,8 @@
     "db:check": "turbo run db:check",
     "db:generate": "turbo run db:generate",
     "db:migrate": "turbo run db:migrate",
-    "dc:build": "docker compose -f docker-compose.build.yml build"
+    "dc:build": "docker compose -f docker-compose.build.yml build",
+    "indexer:reindex-from": "pnpm --filter indexer run reindex-from --"
   },
   "author": "",
   "license": "ISC",

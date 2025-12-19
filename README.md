@@ -79,6 +79,36 @@ The project includes Docker configurations for both the indexer and API. To buil
 pnpm run dc:build
 ```
 
+
+## Reindex From Height
+
+This will delete indexed data at and after the given block height, then let the indexer rebuild from that point. By default it also clears the local block cache (use `--keep-cache` to skip that).
+
+Build the indexer first to ensure `dist` exists:
+
+```
+pnpm --filter indexer run build
+```
+
+Run the reset script:
+
+```
+pnpm run indexer:reindex-from -- 1102205
+```
+
+Alternative forms:
+
+```
+START_HEIGHT=1102205 pnpm run indexer:reindex-from
+pnpm run indexer:reindex-from -- 1102205 --keep-cache
+```
+
+Docker example:
+
+```
+docker compose -f docker-compose.build.yml run --rm indexer node apps/indexer/dist/reindexFromHeight.js 1102205
+```
+
 ## Development
 
 This project uses Turbo for managing the monorepo. Common commands:

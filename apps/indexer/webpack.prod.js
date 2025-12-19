@@ -4,12 +4,15 @@ const nodeExternals = require("webpack-node-externals");
 const hq = require("alias-hq");
 
 module.exports = {
-  entry: "./src/index.ts",
+  entry: {
+    index: "./src/index.ts",
+    reindexFromHeight: "./src/scripts/reindexFromHeight.ts",
+  },
   mode: NODE_ENV,
   target: "node",
   output: {
     path: path.resolve(__dirname, "dist"),
-    filename: "index.js",
+    filename: "[name].js",
   },
   resolve: {
     extensions: [".ts", ".js"],
