@@ -136,9 +136,9 @@ export class ContractIndexer extends Indexer {
       createZodHandler(CollectionMinterTxSchema, (collectionMinterTx) =>
         this.handleAssignMinterToCollection(height, collectionMinterTx, msg, dbTransaction, txEvents)
       ),
-      createZodHandler(CollectionMinterTxSchema2, (collectionMinterTx) => this.handleCreateCollectionWithMinter(height, collectionMinterTx, msg,dbTransaction, txEvents)) ,
+      createZodHandler(CollectionMinterTxSchema2, (collectionMinterTx) => this.handleCreateCollectionWithMinter(height, collectionMinterTx, msg, dbTransaction, txEvents)),
       createZodHandler(CollectionMarketplaceTxSchema, (collectionMarketplaceTx) =>
-        this.insertMarketplaceData(height, dbTransaction, collectionMarketplaceTx,msg, txEvents)
+        this.insertMarketplaceData(height, dbTransaction, collectionMarketplaceTx, msg, txEvents)
       ),
       createZodHandler(AuctionInstantiateSchema, (auctionInstantiate) =>
         this.insertAuctionContractData(height, dbTransaction, auctionInstantiate, msg, txEvents)
@@ -157,12 +157,29 @@ export class ContractIndexer extends Indexer {
       )
     ];
 
-    const matchingHandler = handlers.find((handler) => handler.type.safeParse(jsonData).success);
+    let parsedData: any = null;
+    let parseErrors: any[] = [];
+    const matchingHandler = handlers.find((handler) => {
+      const result = handler.type.safeParse(jsonData);
+      if (result.success) {
+        parsedData = result.data;
+        return true;
+      } else {
+        parseErrors.push({
+          schema: handler.type.description || 'unknown',
+          errors: result.error.format()
+        });
+      }
+      return false;
+    });
 
-    if (matchingHandler) {
-      await matchingHandler.handler(matchingHandler.type.safeParse(jsonData).data);
+    if (matchingHandler && parsedData) {
+      await matchingHandler.handler(parsedData);
     } else {
-      console.log("Not handled", jsonData);
+      console.log("[InstantiateContract] Not handled - Height:", height, "Message:", JSON.stringify(jsonData, null, 2));
+      if (parseErrors.length > 0 && parseErrors.length <= 3) {
+        console.log("Parse errors (showing first 3):", JSON.stringify(parseErrors.slice(0, 3), null, 2));
+      }
     }
   }
 
@@ -351,12 +368,29 @@ export class ContractIndexer extends Indexer {
       )
     ];
 
-    const matchingHandler = handlers.find((handler) => handler.type.safeParse(jsonData).success);
+    let parsedData: any = null;
+    let parseErrors: any[] = [];
+    const matchingHandler = handlers.find((handler) => {
+      const result = handler.type.safeParse(jsonData);
+      if (result.success) {
+        parsedData = result.data;
+        return true;
+      } else {
+        parseErrors.push({
+          schema: handler.type.description || 'unknown',
+          errors: result.error.format()
+        });
+      }
+      return false;
+    });
 
-    if (matchingHandler) {
-      await matchingHandler.handler(matchingHandler.type.safeParse(jsonData).data);
+    if (matchingHandler && parsedData) {
+      await matchingHandler.handler(parsedData);
     } else if (!jsonData.approve && !jsonData.migration_done) {
-      console.log("Not handled", jsonData);
+      console.log("[ExecuteContract] Not handled - Height:", height, "Contract:", decodedMessage.contract, "Message:", JSON.stringify(jsonData, null, 2));
+      if (parseErrors.length > 0 && parseErrors.length <= 3) {
+        console.log("Parse errors (showing first 3):", JSON.stringify(parseErrors.slice(0, 3), null, 2));
+      }
     }
   }
 
@@ -382,7 +416,6 @@ export class ContractIndexer extends Indexer {
 
 
   private async handleCreateCollectionWithMinter(height: number, collectionTx: CollectionTx2, msg: Message, dbTransaction: DbTransaction, txEvents: TransactionEventWithAttributes[]) {
-
     const { minter: minterContract, cw721: collectionAddress } = extractMinterAndCw721OnInstantiateReply(txEvents)
 
 

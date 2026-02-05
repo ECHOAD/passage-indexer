@@ -425,9 +425,18 @@ export class StakingIndexer extends Indexer {
         ),
       ];
 
-      const matchingHandler = handlers.find((handler) => handler.type.safeParse(jsonData).success);
-      if (matchingHandler) {
-        await matchingHandler.handler(matchingHandler.type.safeParse(jsonData).data);
+      let parsedData: any = null;
+      const matchingHandler = handlers.find((handler) => {
+        const result = handler.type.safeParse(jsonData);
+        if (result.success) {
+          parsedData = result.data;
+          return true;
+        }
+        return false;
+      });
+
+      if (matchingHandler && parsedData) {
+        await matchingHandler.handler(parsedData);
       }
     } else if (contractType === "stake_rewards") {
       // Los mensajes de Stake Rewards se llaman internamente desde el vault
