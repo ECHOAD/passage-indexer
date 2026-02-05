@@ -451,7 +451,7 @@ export class ContractIndexer extends Indexer {
 
     console.log('[handleCreateCollectionWithMinter] About to call findFirst, dbTransaction.query.whitelist:', dbTransaction?.query?.whitelist);
     const whitelistDb = await dbTransaction.query.whitelist.findFirst({
-      where: (whitelist, { eq }) => eq(whitelist.address, (collectionTx.whitelist ?? ''))
+      where: (wl, { eq }) => eq(wl.address, (collectionTx.whitelist ?? ''))
     })
 
     await dbTransaction.insert(collection).values({
@@ -1935,7 +1935,7 @@ export class ContractIndexer extends Indexer {
   private async handleAddWhitelistMembers(dbTransaction: DbTransaction, whitelistAddress: string, whitelistAddMembers: WhitelistAddMembersTx, height: number) {
     // Get the whitelist from the database
     const dbWhitelist = await dbTransaction.query.whitelist.findFirst({
-      where: (whitelist, { eq }) => eq(whitelist.address, whitelistAddress)
+      where: (wl, { eq }) => eq(wl.address, whitelistAddress)
     });
 
     if (!dbWhitelist) {
@@ -1966,7 +1966,7 @@ export class ContractIndexer extends Indexer {
     height: number
   ) {
     const dbWhitelist = await dbTransaction.query.whitelist.findFirst({
-      where: (whitelist, { eq }) => eq(whitelist.address, whitelistAddress)
+      where: (wl, { eq }) => eq(wl.address, whitelistAddress)
     });
 
     if (!dbWhitelist) {
@@ -2039,7 +2039,7 @@ export class ContractIndexer extends Indexer {
     }
 
     const dbWhitelist = await dbTransaction.query.whitelist.findFirst({
-      where: (whitelist, { eq }) => eq(whitelist.address, whitelistAddress)
+      where: (wl, { eq }) => eq(wl.address, whitelistAddress)
     });
 
     await dbTransaction
