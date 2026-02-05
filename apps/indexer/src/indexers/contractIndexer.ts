@@ -144,7 +144,16 @@ export class ContractIndexer extends Indexer {
         this.insertAuctionContractData(height, dbTransaction, auctionInstantiate, msg, txEvents)
       ),
       createZodHandler(WhitelistInfoSchema, (whitelistInfo) =>
-        this.handleCreateWhitelist(height, decodedMessage.admin, decodedMessage.label, whitelistInfo, msg, dbTransaction, txEvents)
+        this.handleCreateWhitelist(
+          height,
+          decodedMessage.admin,
+          decodedMessage.label,
+          whitelistInfo,
+          msg,
+          dbTransaction,
+          txEvents,
+          (jsonData as { unit_price?: { amount?: string; denom?: string } | null })?.unit_price
+        )
       )
     ];
 
@@ -1817,14 +1826,24 @@ export class ContractIndexer extends Indexer {
     whitelistInfo: WhitelistInfoTx,
     msg: Message,
     dbTransaction: DbTransaction,
-    txEvents: TransactionEventWithAttributes[]
+    txEvents: TransactionEventWithAttributes[],
+    rawUnitPrice?: { amount?: string; denom?: string } | null
   ) {
     const whitelistAddress = getEventAttributeValue(txEvents, "instantiate", "_contract_address");
 
     if (!whitelistAddress) throw new Error("Whitelist address not found");
     if (!admin) throw new Error("Admin not found");
 
-    await ensureDenom(dbTransaction, whitelistInfo.unit_price.denom);
+    const unitPrice = whitelistInfo.unit_price?.amount ?? rawUnitPrice?.amount ?? "0";
+    let unitDenom = whitelistInfo.unit_price?.denom ?? rawUnitPrice?.denom ?? null;
+    if (!unitDenom) {
+      unitDenom = activeChain.udenom;
+      console.warn(
+        `[whitelist] Missing unit_price.denom at height ${height} (msg ${msg.id}). Defaulting to ${unitDenom}. raw=${JSON.stringify(rawUnitPrice ?? whitelistInfo.unit_price ?? null)}`
+      );
+    }
+
+    await ensureDenom(dbTransaction, unitDenom);
 
     const [insertedWhitelist] = await dbTransaction
         .insert(whitelist)
@@ -1836,8 +1855,8 @@ export class ContractIndexer extends Indexer {
           memberLimit: whitelistInfo.member_limit,
           numMembers: whitelistInfo.members.length,
           perAddressLimit: whitelistInfo.per_address_limit,
-          unitPrice: whitelistInfo.unit_price.amount,
-          unitDenom: whitelistInfo.unit_price.denom
+          unitPrice,
+          unitDenom
         })
         .returning();
 
