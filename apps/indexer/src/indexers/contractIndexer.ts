@@ -127,6 +127,14 @@ export class ContractIndexer extends Indexer {
     msg: Message,
     txEvents: TransactionEventWithAttributes[]
   ) {
+    console.log('[handleMsgInstantiateContract] Entry params:', {
+      height: typeof height,
+      dbTransaction: typeof dbTransaction,
+      hasQuery: !!dbTransaction?.query,
+      msg: typeof msg,
+      txEvents: typeof txEvents
+    });
+
     const buffer = Buffer.from(decodedMessage.msg);
     const stringBuffer = buffer.toString().replace(/\\n/g, "");
     const jsonData = JSON.parse(stringBuffer);
@@ -174,6 +182,7 @@ export class ContractIndexer extends Indexer {
     });
 
     if (matchingHandler && parsedData) {
+      console.log('[handleMsgInstantiateContract] Before calling handler, dbTransaction:', typeof dbTransaction, 'hasQuery:', !!dbTransaction?.query);
       await matchingHandler.handler(parsedData);
     } else {
       console.log("[InstantiateContract] Not handled - Height:", height, "Message:", JSON.stringify(jsonData, null, 2));
@@ -416,6 +425,16 @@ export class ContractIndexer extends Indexer {
 
 
   private async handleCreateCollectionWithMinter(height: number, collectionTx: CollectionTx2, msg: Message, dbTransaction: DbTransaction, txEvents: TransactionEventWithAttributes[]) {
+    console.log('[handleCreateCollectionWithMinter] DEBUG:', {
+      height: typeof height,
+      collectionTx: typeof collectionTx,
+      msg: typeof msg,
+      dbTransaction: typeof dbTransaction,
+      hasQuery: !!dbTransaction?.query,
+      txEvents: typeof txEvents,
+      dbTransactionKeys: dbTransaction ? Object.keys(dbTransaction).slice(0, 10) : 'undefined'
+    });
+
     const { minter: minterContract, cw721: collectionAddress } = extractMinterAndCw721OnInstantiateReply(txEvents)
 
 
@@ -423,6 +442,7 @@ export class ContractIndexer extends Indexer {
 
     await ensureDenom(dbTransaction, collectionTx.unit_price.denom);
 
+    console.log('[handleCreateCollectionWithMinter] About to call findFirst, dbTransaction.query:', typeof dbTransaction?.query);
     const whitelistDb = await dbTransaction.query.whitelist.findFirst({
       where: (whitelist, { eq }) => eq(whitelist.address, (collectionTx.whitelist ?? ''))
     })
