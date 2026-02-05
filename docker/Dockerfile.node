@@ -34,7 +34,7 @@ RUN pnpm install --frozen-lockfile
 COPY --from=builder /app/out/full/ .
 COPY turbo.json turbo.json
 
-RUN pnpm turbo run build --filter=$WORKSPACE...
+RUN pnpm turbo run build --filter=$WORKSPACE... --force
 
 FROM base AS production
 
