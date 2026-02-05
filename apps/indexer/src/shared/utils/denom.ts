@@ -101,6 +101,12 @@ export async function ensureDenom(
   const cached = denomCache.get(denomValue);
   if (cached) return cached;
 
+  // WORKAROUND: Check if denom table exists in query
+  if (!dbTransaction.query?.denom) {
+    console.warn('[ensureDenom] denom table not available in dbTransaction.query, skipping denom check');
+    return null;
+  }
+
   const existing = await dbTransaction.query.denom.findFirst({
     where: (table, { eq }) => eq(table.denom, denomValue),
   });
@@ -114,6 +120,11 @@ export async function ensureDenom(
   const insertData = buildDenomInsert(denomValue, trace);
 
   if (!existing) {
+    // WORKAROUND: Skip insert if denom table not available
+    if (!dbTransaction.query?.denom) {
+      console.warn('[ensureDenom] Cannot insert denom, table not available');
+      return null;
+    }
     await dbTransaction.insert(denom).values(insertData).onConflictDoNothing();
     const inserted = await dbTransaction.query.denom.findFirst({
       where: (table, { eq }) => eq(table.denom, denomValue),

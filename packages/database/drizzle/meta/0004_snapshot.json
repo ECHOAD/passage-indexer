@@ -1,5 +1,5 @@
 {
-  "id": "059d56fa-d957-4c69-bdd2-77496377a767",
+  "id": "2811dcdd-b365-4a69-b26c-7868e5460a63",
   "prevId": "c9b80026-1690-4ae1-961a-cec19167bb02",
   "version": "7",
   "dialect": "postgresql",
@@ -126,6 +126,12 @@
           "type": "varchar(255)",
           "primaryKey": false,
           "notNull": true
+        },
+        "parent_hash": {
+          "name": "parent_hash",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
         },
         "proposer": {
           "name": "proposer",
@@ -1367,6 +1373,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "market_denom": {
+          "name": "market_denom",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
         "minter": {
           "name": "minter",
           "type": "varchar(255)",
@@ -1462,6 +1474,66 @@
           "type": "numeric",
           "primaryKey": false,
           "notNull": false
+        },
+        "auction_contract": {
+          "name": "auction_contract",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "auction_denom": {
+          "name": "auction_denom",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "auction_collector_address": {
+          "name": "auction_collector_address",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "auction_trading_fee_bps": {
+          "name": "auction_trading_fee_bps",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "auction_min_price": {
+          "name": "auction_min_price",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "auction_min_bid_increment": {
+          "name": "auction_min_bid_increment",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "auction_min_duration": {
+          "name": "auction_min_duration",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "auction_max_duration": {
+          "name": "auction_max_duration",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "auction_closed_duration": {
+          "name": "auction_closed_duration",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "auction_buffer_duration": {
+          "name": "auction_buffer_duration",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -1470,6 +1542,36 @@
           "columns": [
             {
               "expression": "mint_contract",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "collection_market_contract": {
+          "name": "collection_market_contract",
+          "columns": [
+            {
+              "expression": "market_contract",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "collection_auction_contract": {
+          "name": "collection_auction_contract",
+          "columns": [
+            {
+              "expression": "auction_contract",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1491,6 +1593,260 @@
           ],
           "columnsTo": [
             "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.denom": {
+      "name": "denom",
+      "schema": "",
+      "columns": {
+        "denom": {
+          "name": "denom",
+          "type": "varchar(255)",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "display_denom": {
+          "name": "display_denom",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "base_denom": {
+          "name": "base_denom",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "decimals": {
+          "name": "decimals",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 6
+        },
+        "symbol": {
+          "name": "symbol",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "coingecko_id": {
+          "name": "coingecko_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_native": {
+          "name": "is_native",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "is_ibc": {
+          "name": "is_ibc",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "is_convertible": {
+          "name": "is_convertible",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "chain_id": {
+          "name": "chain_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "denom_display_idx": {
+          "name": "denom_display_idx",
+          "columns": [
+            {
+              "expression": "display_denom",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "denom_base_idx": {
+          "name": "denom_base_idx",
+          "columns": [
+            {
+              "expression": "base_denom",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "denom_cg_idx": {
+          "name": "denom_cg_idx",
+          "columns": [
+            {
+              "expression": "coingecko_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.denom_rate": {
+      "name": "denom_rate",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "denom": {
+          "name": "denom",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "date": {
+          "name": "date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "usd_price": {
+          "name": "usd_price",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source": {
+          "name": "source",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "denom_rate_denom_idx": {
+          "name": "denom_rate_denom_idx",
+          "columns": [
+            {
+              "expression": "denom",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "denom_rate_date_idx": {
+          "name": "denom_rate_date_idx",
+          "columns": [
+            {
+              "expression": "date",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "denom_rate_denom_date_unique": {
+          "name": "denom_rate_denom_date_unique",
+          "columns": [
+            {
+              "expression": "denom",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "date",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "denom_rate_denom_denom_denom_fk": {
+          "name": "denom_rate_denom_denom_denom_fk",
+          "tableFrom": "denom_rate",
+          "tableTo": "denom",
+          "columnsFrom": [
+            "denom"
+          ],
+          "columnsTo": [
+            "denom"
           ],
           "onDelete": "cascade",
           "onUpdate": "cascade"
@@ -1748,6 +2104,195 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.nft_mint": {
+      "name": "nft_mint",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "nft_id": {
+          "name": "nft_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "minter": {
+          "name": "minter",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "recipient": {
+          "name": "recipient",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "mint_price": {
+          "name": "mint_price",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "mint_denom": {
+          "name": "mint_denom",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "mint_block_height": {
+          "name": "mint_block_height",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "is_airdrop": {
+          "name": "is_airdrop",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "transaction_id": {
+          "name": "transaction_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "transaction_event_id": {
+          "name": "transaction_event_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "nft_mint_nft_idx": {
+          "name": "nft_mint_nft_idx",
+          "columns": [
+            {
+              "expression": "nft_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "nft_mint_block_idx": {
+          "name": "nft_mint_block_idx",
+          "columns": [
+            {
+              "expression": "mint_block_height",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "nft_mint_tx_event_idx": {
+          "name": "nft_mint_tx_event_idx",
+          "columns": [
+            {
+              "expression": "transaction_event_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "nft_mint_tx_event_unique": {
+          "name": "nft_mint_tx_event_unique",
+          "columns": [
+            {
+              "expression": "transaction_event_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "nft_mint_nft_id_nft_id_fk": {
+          "name": "nft_mint_nft_id_nft_id_fk",
+          "tableFrom": "nft_mint",
+          "tableTo": "nft",
+          "columnsFrom": [
+            "nft_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        },
+        "nft_mint_mint_block_height_block_height_fk": {
+          "name": "nft_mint_mint_block_height_block_height_fk",
+          "tableFrom": "nft_mint",
+          "tableTo": "block",
+          "columnsFrom": [
+            "mint_block_height"
+          ],
+          "columnsTo": [
+            "height"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "nft_mint_transaction_id_transaction_id_fk": {
+          "name": "nft_mint_transaction_id_transaction_id_fk",
+          "tableFrom": "nft_mint",
+          "tableTo": "transaction",
+          "columnsFrom": [
+            "transaction_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "cascade"
+        },
+        "nft_mint_transaction_event_id_transaction_event_id_fk": {
+          "name": "nft_mint_transaction_event_id_transaction_event_id_fk",
+          "tableFrom": "nft_mint",
+          "tableTo": "transaction_event",
+          "columnsFrom": [
+            "transaction_event_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.nft_sale": {
       "name": "nft_sale",
       "schema": "",
@@ -1795,6 +2340,32 @@
           "primaryKey": false,
           "notNull": true
         },
+        "source_contract": {
+          "name": "source_contract",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sale_type": {
+          "name": "sale_type",
+          "type": "nft_sale_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'unknown'"
+        },
+        "transaction_id": {
+          "name": "transaction_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "transaction_event_id": {
+          "name": "transaction_event_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "market_fee": {
           "name": "market_fee",
           "type": "numeric",
@@ -1821,9 +2392,9 @@
         },
         "royalty_fee_address": {
           "name": "royalty_fee_address",
-          "type": "varchar",
+          "type": "varchar(255)",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -1838,6 +2409,66 @@
             }
           ],
           "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "nft_sale_block_height": {
+          "name": "nft_sale_block_height",
+          "columns": [
+            {
+              "expression": "sale_block_height",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "nft_sale_source_contract": {
+          "name": "nft_sale_source_contract",
+          "columns": [
+            {
+              "expression": "source_contract",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "nft_sale_tx_event_id": {
+          "name": "nft_sale_tx_event_id",
+          "columns": [
+            {
+              "expression": "transaction_event_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "nft_sale_tx_event_unique": {
+          "name": "nft_sale_tx_event_unique",
+          "columns": [
+            {
+              "expression": "transaction_event_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -1869,6 +2500,32 @@
           ],
           "onDelete": "no action",
           "onUpdate": "no action"
+        },
+        "nft_sale_transaction_id_transaction_id_fk": {
+          "name": "nft_sale_transaction_id_transaction_id_fk",
+          "tableFrom": "nft_sale",
+          "tableTo": "transaction",
+          "columnsFrom": [
+            "transaction_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "cascade"
+        },
+        "nft_sale_transaction_event_id_transaction_event_id_fk": {
+          "name": "nft_sale_transaction_event_id_transaction_event_id_fk",
+          "tableFrom": "nft_sale",
+          "tableTo": "transaction_event",
+          "columnsFrom": [
+            "transaction_event_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -1893,6 +2550,12 @@
           "type": "varchar(255)",
           "primaryKey": false,
           "notNull": true
+        },
+        "market_contract": {
+          "name": "market_contract",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
         },
         "nft": {
           "name": "nft",
@@ -1929,9 +2592,76 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": false
+        },
+        "transaction_event_id": {
+          "name": "transaction_event_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "nft_bid_nft_idx": {
+          "name": "nft_bid_nft_idx",
+          "columns": [
+            {
+              "expression": "nft",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "nft_bid_market_idx": {
+          "name": "nft_bid_market_idx",
+          "columns": [
+            {
+              "expression": "market_contract",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "nft_bid_tx_event_idx": {
+          "name": "nft_bid_tx_event_idx",
+          "columns": [
+            {
+              "expression": "transaction_event_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "nft_bid_tx_event_unique": {
+          "name": "nft_bid_tx_event_unique",
+          "columns": [
+            {
+              "expression": "transaction_event_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "nft_bid_nft_nft_id_fk": {
           "name": "nft_bid_nft_nft_id_fk",
@@ -1971,6 +2701,19 @@
           ],
           "onDelete": "no action",
           "onUpdate": "no action"
+        },
+        "nft_bid_transaction_event_id_transaction_event_id_fk": {
+          "name": "nft_bid_transaction_event_id_transaction_event_id_fk",
+          "tableFrom": "nft_bid",
+          "tableTo": "transaction_event",
+          "columnsFrom": [
+            "transaction_event_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -1995,6 +2738,12 @@
           "type": "varchar(255)",
           "primaryKey": false,
           "notNull": true
+        },
+        "market_contract": {
+          "name": "market_contract",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
         },
         "collection": {
           "name": "collection",
@@ -2043,6 +2792,12 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": false
+        },
+        "transaction_event_id": {
+          "name": "transaction_event_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -2064,6 +2819,51 @@
           ],
           "isUnique": true,
           "where": "\"nft_collection_bid\".\"removed_block_height\" is null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "nft_collection_bid_market_idx": {
+          "name": "nft_collection_bid_market_idx",
+          "columns": [
+            {
+              "expression": "market_contract",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "nft_collection_bid_tx_event_idx": {
+          "name": "nft_collection_bid_tx_event_idx",
+          "columns": [
+            {
+              "expression": "transaction_event_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "nft_collection_bid_tx_event_unique": {
+          "name": "nft_collection_bid_tx_event_unique",
+          "columns": [
+            {
+              "expression": "transaction_event_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -2108,6 +2908,19 @@
           ],
           "onDelete": "no action",
           "onUpdate": "no action"
+        },
+        "nft_collection_bid_transaction_event_id_transaction_event_id_fk": {
+          "name": "nft_collection_bid_transaction_event_id_transaction_event_id_fk",
+          "tableFrom": "nft_collection_bid",
+          "tableTo": "transaction_event",
+          "columnsFrom": [
+            "transaction_event_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -2132,6 +2945,12 @@
           "type": "varchar(255)",
           "primaryKey": false,
           "notNull": true
+        },
+        "market_contract": {
+          "name": "market_contract",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
         },
         "nft": {
           "name": "nft",
@@ -2168,9 +2987,76 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": false
+        },
+        "transaction_event_id": {
+          "name": "transaction_event_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "nft_listing_nft_idx": {
+          "name": "nft_listing_nft_idx",
+          "columns": [
+            {
+              "expression": "nft",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "nft_listing_market_idx": {
+          "name": "nft_listing_market_idx",
+          "columns": [
+            {
+              "expression": "market_contract",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "nft_listing_tx_event_idx": {
+          "name": "nft_listing_tx_event_idx",
+          "columns": [
+            {
+              "expression": "transaction_event_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "nft_listing_tx_event_unique": {
+          "name": "nft_listing_tx_event_unique",
+          "columns": [
+            {
+              "expression": "transaction_event_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "nft_listing_nft_nft_id_fk": {
           "name": "nft_listing_nft_nft_id_fk",
@@ -2210,6 +3096,19 @@
           ],
           "onDelete": "no action",
           "onUpdate": "no action"
+        },
+        "nft_listing_transaction_event_id_transaction_event_id_fk": {
+          "name": "nft_listing_transaction_event_id_transaction_event_id_fk",
+          "tableFrom": "nft_listing",
+          "tableTo": "transaction_event",
+          "columnsFrom": [
+            "transaction_event_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -2252,9 +3151,67 @@
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
+        },
+        "transaction_id": {
+          "name": "transaction_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "transaction_event_id": {
+          "name": "transaction_event_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "nft_transfer_nft_idx": {
+          "name": "nft_transfer_nft_idx",
+          "columns": [
+            {
+              "expression": "nft_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "nft_transfer_tx_event_idx": {
+          "name": "nft_transfer_tx_event_idx",
+          "columns": [
+            {
+              "expression": "transaction_event_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "nft_transfer_tx_event_unique": {
+          "name": "nft_transfer_tx_event_unique",
+          "columns": [
+            {
+              "expression": "transaction_event_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "nft_transfer_nft_id_nft_id_fk": {
           "name": "nft_transfer_nft_id_nft_id_fk",
@@ -2268,6 +3225,584 @@
           ],
           "onDelete": "no action",
           "onUpdate": "no action"
+        },
+        "nft_transfer_transaction_id_transaction_id_fk": {
+          "name": "nft_transfer_transaction_id_transaction_id_fk",
+          "tableFrom": "nft_transfer",
+          "tableTo": "transaction",
+          "columnsFrom": [
+            "transaction_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "cascade"
+        },
+        "nft_transfer_transaction_event_id_transaction_event_id_fk": {
+          "name": "nft_transfer_transaction_event_id_transaction_event_id_fk",
+          "tableFrom": "nft_transfer",
+          "tableTo": "transaction_event",
+          "columnsFrom": [
+            "transaction_event_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.nft_auction": {
+      "name": "nft_auction",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "auction_contract": {
+          "name": "auction_contract",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "collection": {
+          "name": "collection",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nft_id": {
+          "name": "nft_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "token_id": {
+          "name": "token_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "raw_token_id": {
+          "name": "raw_token_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "seller": {
+          "name": "seller",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "start_time": {
+          "name": "start_time",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "end_time": {
+          "name": "end_time",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "starting_price": {
+          "name": "starting_price",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "starting_denom": {
+          "name": "starting_denom",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reserve_price": {
+          "name": "reserve_price",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reserve_denom": {
+          "name": "reserve_denom",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "highest_bid_price": {
+          "name": "highest_bid_price",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "highest_bid_denom": {
+          "name": "highest_bid_denom",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "highest_bidder": {
+          "name": "highest_bidder",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "highest_bid_block_height": {
+          "name": "highest_bid_block_height",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "nft_auction_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'active'"
+        },
+        "created_block_height": {
+          "name": "created_block_height",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "closed_block_height": {
+          "name": "closed_block_height",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "finalized_block_height": {
+          "name": "finalized_block_height",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "voided_block_height": {
+          "name": "voided_block_height",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "transaction_id": {
+          "name": "transaction_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "transaction_event_id": {
+          "name": "transaction_event_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "nft_auction_contract_idx": {
+          "name": "nft_auction_contract_idx",
+          "columns": [
+            {
+              "expression": "auction_contract",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "nft_auction_collection_idx": {
+          "name": "nft_auction_collection_idx",
+          "columns": [
+            {
+              "expression": "collection",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "nft_auction_status_idx": {
+          "name": "nft_auction_status_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "nft_auction_end_time_idx": {
+          "name": "nft_auction_end_time_idx",
+          "columns": [
+            {
+              "expression": "end_time",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "nft_auction_tx_event_idx": {
+          "name": "nft_auction_tx_event_idx",
+          "columns": [
+            {
+              "expression": "transaction_event_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "nft_auction_tx_event_unique": {
+          "name": "nft_auction_tx_event_unique",
+          "columns": [
+            {
+              "expression": "transaction_event_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "nft_auction_collection_collection_address_fk": {
+          "name": "nft_auction_collection_collection_address_fk",
+          "tableFrom": "nft_auction",
+          "tableTo": "collection",
+          "columnsFrom": [
+            "collection"
+          ],
+          "columnsTo": [
+            "address"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        },
+        "nft_auction_nft_id_nft_id_fk": {
+          "name": "nft_auction_nft_id_nft_id_fk",
+          "tableFrom": "nft_auction",
+          "tableTo": "nft",
+          "columnsFrom": [
+            "nft_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "cascade"
+        },
+        "nft_auction_highest_bid_block_height_block_height_fk": {
+          "name": "nft_auction_highest_bid_block_height_block_height_fk",
+          "tableFrom": "nft_auction",
+          "tableTo": "block",
+          "columnsFrom": [
+            "highest_bid_block_height"
+          ],
+          "columnsTo": [
+            "height"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "nft_auction_created_block_height_block_height_fk": {
+          "name": "nft_auction_created_block_height_block_height_fk",
+          "tableFrom": "nft_auction",
+          "tableTo": "block",
+          "columnsFrom": [
+            "created_block_height"
+          ],
+          "columnsTo": [
+            "height"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "nft_auction_closed_block_height_block_height_fk": {
+          "name": "nft_auction_closed_block_height_block_height_fk",
+          "tableFrom": "nft_auction",
+          "tableTo": "block",
+          "columnsFrom": [
+            "closed_block_height"
+          ],
+          "columnsTo": [
+            "height"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "nft_auction_finalized_block_height_block_height_fk": {
+          "name": "nft_auction_finalized_block_height_block_height_fk",
+          "tableFrom": "nft_auction",
+          "tableTo": "block",
+          "columnsFrom": [
+            "finalized_block_height"
+          ],
+          "columnsTo": [
+            "height"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "nft_auction_voided_block_height_block_height_fk": {
+          "name": "nft_auction_voided_block_height_block_height_fk",
+          "tableFrom": "nft_auction",
+          "tableTo": "block",
+          "columnsFrom": [
+            "voided_block_height"
+          ],
+          "columnsTo": [
+            "height"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "nft_auction_transaction_id_transaction_id_fk": {
+          "name": "nft_auction_transaction_id_transaction_id_fk",
+          "tableFrom": "nft_auction",
+          "tableTo": "transaction",
+          "columnsFrom": [
+            "transaction_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "cascade"
+        },
+        "nft_auction_transaction_event_id_transaction_event_id_fk": {
+          "name": "nft_auction_transaction_event_id_transaction_event_id_fk",
+          "tableFrom": "nft_auction",
+          "tableTo": "transaction_event",
+          "columnsFrom": [
+            "transaction_event_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.nft_auction_bid": {
+      "name": "nft_auction_bid",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "auction_id": {
+          "name": "auction_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bidder": {
+          "name": "bidder",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bid_price": {
+          "name": "bid_price",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bid_denom": {
+          "name": "bid_denom",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bid_block_height": {
+          "name": "bid_block_height",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "refunded_block_height": {
+          "name": "refunded_block_height",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_highest": {
+          "name": "is_highest",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "transaction_event_id": {
+          "name": "transaction_event_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "nft_auction_bid_auction_idx": {
+          "name": "nft_auction_bid_auction_idx",
+          "columns": [
+            {
+              "expression": "auction_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "nft_auction_bid_bidder_idx": {
+          "name": "nft_auction_bid_bidder_idx",
+          "columns": [
+            {
+              "expression": "bidder",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "nft_auction_bid_tx_event_idx": {
+          "name": "nft_auction_bid_tx_event_idx",
+          "columns": [
+            {
+              "expression": "transaction_event_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "nft_auction_bid_tx_event_unique": {
+          "name": "nft_auction_bid_tx_event_unique",
+          "columns": [
+            {
+              "expression": "transaction_event_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "nft_auction_bid_auction_id_nft_auction_id_fk": {
+          "name": "nft_auction_bid_auction_id_nft_auction_id_fk",
+          "tableFrom": "nft_auction_bid",
+          "tableTo": "nft_auction",
+          "columnsFrom": [
+            "auction_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        },
+        "nft_auction_bid_bid_block_height_block_height_fk": {
+          "name": "nft_auction_bid_bid_block_height_block_height_fk",
+          "tableFrom": "nft_auction_bid",
+          "tableTo": "block",
+          "columnsFrom": [
+            "bid_block_height"
+          ],
+          "columnsTo": [
+            "height"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "nft_auction_bid_refunded_block_height_block_height_fk": {
+          "name": "nft_auction_bid_refunded_block_height_block_height_fk",
+          "tableFrom": "nft_auction_bid",
+          "tableTo": "block",
+          "columnsFrom": [
+            "refunded_block_height"
+          ],
+          "columnsTo": [
+            "height"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "nft_auction_bid_transaction_event_id_transaction_event_id_fk": {
+          "name": "nft_auction_bid_transaction_event_id_transaction_event_id_fk",
+          "tableFrom": "nft_auction_bid",
+          "tableTo": "transaction_event",
+          "columnsFrom": [
+            "transaction_event_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -2337,7 +3872,13 @@
         },
         "unit_price": {
           "name": "unit_price",
-          "type": "integer",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "unit_denom": {
+          "name": "unit_denom",
+          "type": "varchar(255)",
           "primaryKey": false,
           "notNull": true
         }
@@ -2354,6 +3895,21 @@
             }
           ],
           "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "whitelist_address_unique": {
+          "name": "whitelist_address_unique",
+          "columns": [
+            {
+              "expression": "address",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -2635,6 +4191,38 @@
           "onUpdate": "cascade"
         }
       },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.sync_state": {
+      "name": "sync_state",
+      "schema": "",
+      "columns": {
+        "key": {
+          "name": "key",
+          "type": "varchar(128)",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "value": {
+          "name": "value",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -3855,6 +5443,25 @@
       "values": [
         "begin_block_events",
         "end_block_events"
+      ]
+    },
+    "public.nft_sale_type": {
+      "name": "nft_sale_type",
+      "schema": "public",
+      "values": [
+        "fixed_price",
+        "auction_english",
+        "unknown"
+      ]
+    },
+    "public.nft_auction_status": {
+      "name": "nft_auction_status",
+      "schema": "public",
+      "values": [
+        "active",
+        "closed",
+        "finalized",
+        "voided"
       ]
     },
     "public.reward_asset_type": {
