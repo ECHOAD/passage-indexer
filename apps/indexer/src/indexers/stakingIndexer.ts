@@ -1,4 +1,4 @@
-import { DecodedTxRaw } from "@cosmjs/proto-signing";
+import { DecodedTxRaw, parseCoins } from "@cosmjs/proto-signing";
 import { Indexer } from "./indexer";
 import { MsgExecuteContract, MsgInstantiateContract } from "cosmjs-types/cosmwasm/wasm/v1/tx";
 import {
@@ -22,9 +22,10 @@ import {
   StakingEventInsert,
   RewardClaimInsert,
   nft,
-  collection,
+  sql,
 } from "database";
 import { getEventAttributeValue } from "@src/shared/utils/nftUtils";
+import { ensureDenom } from "@src/shared/utils/denom";
 import {
   VaultFactoryCreateVaultSchema,
   NftVaultInstantiateSchema,
@@ -34,8 +35,6 @@ import {
   NftVaultClaimRewardsSchema,
   NftVaultCreateRewardAccountSchema,
   StakeRewardsInstantiateSchema,
-  StakeRewardsStakeChangeSchema,
-  StakeRewardsClaimRewardsSchema,
 } from "@src/shared/zod/stakingSchema";
 import z from "zod";
 
@@ -110,6 +109,21 @@ function getContractAddressFromEvents(events: TransactionEventWithAttributes[]):
   return null;
 }
 
+function getContractAddressForMsgIndex(
+  events: TransactionEventWithAttributes[],
+  msgIndex: number | null | undefined
+): string | null {
+  if (msgIndex == null) return null;
+  const scoped = events.filter((event) => event.msgIndex === msgIndex);
+  for (const event of scoped) {
+    const attr =
+      event.attributes.find((a) => a.key === "_contract_address" && a.value) ||
+      event.attributes.find((a) => a.key === "contract_address" && a.value);
+    if (attr?.value) return attr.value;
+  }
+  return null;
+}
+
 function getStakingEvents(events: TransactionEventWithAttributes[], eventType: string): TransactionEventWithAttributes[] {
   const candidates = getStakingEventTypeCandidates(eventType);
   return events.filter((e) => candidates.includes(e.type));
@@ -127,6 +141,78 @@ export class StakingIndexer extends Indexer {
     this.msgHandlers = {
       "/cosmwasm.wasm.v1.MsgInstantiateContract": this.handleInstantiateContract,
       "/cosmwasm.wasm.v1.MsgExecuteContract": this.handleExecuteContract,
+    };
+  }
+
+  private async computeStakeAmounts(
+    dbTransaction: DbTransaction,
+    vaultAddress: string,
+    stakerAddress: string
+  ): Promise<{ userStakedAmount: string; totalStakedAmount: string }> {
+    const vault = await dbTransaction.query.stakeVault.findFirst({
+      where: (vault, { eq }) => eq(vault.address, vaultAddress),
+    });
+
+    if (!vault || !vault.collections || vault.collections.length === 0) {
+      return { userStakedAmount: "0", totalStakedAmount: "0" };
+    }
+
+    const collections = vault.collections as string[];
+
+    const userRows = await dbTransaction
+      .select({
+        collection: stakedNft.collectionAddress,
+        count: sql<number>`COUNT(*)`,
+      })
+      .from(stakedNft)
+      .where(
+        and(
+          eq(stakedNft.vaultAddress, vaultAddress),
+          eq(stakedNft.stakerAddress, stakerAddress),
+          isNull(stakedNft.unstakedAtHeight)
+        )
+      )
+      .groupBy(stakedNft.collectionAddress);
+
+    const userCountMap = new Map<string, number>();
+    for (const row of userRows) {
+      userCountMap.set(row.collection, Number(row.count ?? 0));
+    }
+
+    const userStakedAmount = Math.min(
+      ...collections.map((c) => userCountMap.get(c) ?? 0)
+    );
+
+    const allRows = await dbTransaction
+      .select({
+        staker: stakedNft.stakerAddress,
+        collection: stakedNft.collectionAddress,
+        count: sql<number>`COUNT(*)`,
+      })
+      .from(stakedNft)
+      .where(
+        and(eq(stakedNft.vaultAddress, vaultAddress), isNull(stakedNft.unstakedAtHeight))
+      )
+      .groupBy(stakedNft.stakerAddress, stakedNft.collectionAddress);
+
+    const stakerMap = new Map<string, Map<string, number>>();
+    for (const row of allRows) {
+      const entry = stakerMap.get(row.staker) ?? new Map<string, number>();
+      entry.set(row.collection, Number(row.count ?? 0));
+      stakerMap.set(row.staker, entry);
+    }
+
+    let totalStakedAmount = 0;
+    for (const [, counts] of stakerMap.entries()) {
+      const minPerStaker = Math.min(
+        ...collections.map((c) => counts.get(c) ?? 0)
+      );
+      totalStakedAmount += minPerStaker;
+    }
+
+    return {
+      userStakedAmount: userStakedAmount.toString(),
+      totalStakedAmount: totalStakedAmount.toString(),
     };
   }
 
@@ -467,6 +553,8 @@ export class StakingIndexer extends Indexer {
     const durationSec = parseInt(durationSecStr);
     const periodEnd = new Date(periodStart.getTime() + durationSec * 1000);
 
+    await ensureDenom(dbTransaction, rewardAssetDenom);
+
     // Obtener fondos iniciales
     const funds = decodedMessage.funds?.[0];
     const totalFunds = funds ? funds.amount : "0";
@@ -528,6 +616,8 @@ export class StakingIndexer extends Indexer {
     const funds = decodedMessage.funds?.[0];
     const totalFunds = funds ? funds.amount : "0";
 
+    await ensureDenom(dbTransaction, assetDenom);
+
     const rewardAccountData: StakeRewardAccountInsert = {
       address: rewardAccountAddress,
       vaultAddress,
@@ -565,19 +655,8 @@ export class StakingIndexer extends Indexer {
 
     if (nftCount === 0) return;
 
-    // Buscar eventos stake-change emitidos por Stake Rewards
-    // Estos eventos se emiten después del stake cuando el vault llama a stake_change()
-    const stakeChangeEvents = getStakingEvents(txEvents, "stake-change");
-
-    // Extraer cantidades del primer evento stake-change encontrado
-    let userStakedAmount = "0";
-    let totalStakedAmount = "0";
-
-    if (stakeChangeEvents.length > 0) {
-      const firstStakeChange = stakeChangeEvents[0];
-      userStakedAmount = getStakingEventAttribute([firstStakeChange], "stake-change", "amount") || "0";
-      totalStakedAmount = getStakingEventAttribute([firstStakeChange], "stake-change", "total_staked") || "0";
-    }
+    // stake-change events are emitted by the rewards contract, but are unreliable for
+    // multi-collection vaults. We compute stake amounts from indexed NFTs instead.
 
     // Insertar cada NFT stakeado
     for (const nft of nfts) {
@@ -601,6 +680,12 @@ export class StakingIndexer extends Indexer {
 
       await dbTransaction.insert(stakedNft).values(stakedNftData);
     }
+
+    const { userStakedAmount, totalStakedAmount } = await this.computeStakeAmounts(
+      dbTransaction,
+      vaultAddress,
+      stakerAddress
+    );
 
     // Insertar evento
     const transaction = await dbTransaction.query.transaction.findFirst({
@@ -653,17 +738,6 @@ export class StakingIndexer extends Indexer {
 
     const claimableAt = new Date(block.datetime.getTime() + Number(vault.unstakingDurationSec) * 1000);
 
-    // Buscar eventos stake-change para obtener cantidades actualizadas
-    const stakeChangeEvents = getStakingEvents(txEvents, "stake-change");
-    let userStakedAmount = "0";
-    let totalStakedAmount = "0";
-
-    if (stakeChangeEvents.length > 0) {
-      const firstStakeChange = stakeChangeEvents[0];
-      userStakedAmount = getStakingEventAttribute([firstStakeChange], "stake-change", "amount") || "0";
-      totalStakedAmount = getStakingEventAttribute([firstStakeChange], "stake-change", "total_staked") || "0";
-    }
-
     // Marcar NFTs como unstakeados
     for (const nft of nfts) {
       const collectionAddress = nft.collection;
@@ -686,6 +760,12 @@ export class StakingIndexer extends Indexer {
           )
         );
     }
+
+    const { userStakedAmount, totalStakedAmount } = await this.computeStakeAmounts(
+      dbTransaction,
+      vaultAddress,
+      stakerAddress
+    );
 
     // Insertar evento
     const transaction = await dbTransaction.query.transaction.findFirst({
@@ -863,68 +943,117 @@ export class StakingIndexer extends Indexer {
     });
     if (!block) throw new Error(`Block ${height} not found`);
 
-    // El vault llama a múltiples reward accounts, cada uno emite eventos
-    // Necesitamos agrupar eventos por reward account
-
-    // Buscar todos los eventos update-rewards y update-user-rewards
     const updateRewardsEvents = getStakingEvents(txEvents, "update-rewards");
     const updateUserRewardsEvents = getStakingEvents(txEvents, "update-user-rewards");
 
-    // Buscar transferencias de tokens (native o CW20)
+    const updateRewardsByMsgIndex = new Map<number, TransactionEventWithAttributes>();
+    for (const event of updateRewardsEvents) {
+      if (event.msgIndex != null && !updateRewardsByMsgIndex.has(event.msgIndex)) {
+        updateRewardsByMsgIndex.set(event.msgIndex, event);
+      }
+    }
+
     const transferEvents = txEvents.filter(
       (e) =>
         e.type === "transfer" ||
         e.type === "wasm-transfer" ||
         e.type === "coin_received" ||
-        e.type === "coin_spent"
+        e.type === "coin_spent" ||
+        e.type === "wasm"
     );
 
-    // Procesar cada reward account que emitió eventos
-    // Asumimos que los eventos están en orden y corresponden a los mismos reward accounts
-    for (let i = 0; i < updateRewardsEvents.length; i++) {
-      const updateRewardsEvent = updateRewardsEvents[i];
-      const updateUserRewardsEvent = updateUserRewardsEvents[i];
+    for (const updateUserRewardsEvent of updateUserRewardsEvents) {
+      const msgIndex = updateUserRewardsEvent.msgIndex ?? null;
+      const updateRewardsEvent =
+        (msgIndex != null ? updateRewardsByMsgIndex.get(msgIndex) : undefined) || updateRewardsEvents[0];
 
-      if (!updateUserRewardsEvent) continue;
-
-      // Buscar el address del contrato que emitió el evento
-      // Los eventos update-rewards y update-user-rewards se emiten desde Stake Rewards
-      // Necesitamos encontrar qué reward account los emitió
-      // Esto es complejo porque múltiples reward accounts pueden emitir eventos
-      // Por ahora, intentamos obtenerlo de los eventos wasm en el contexto del mensaje
-      // Una mejor solución sería rastrear qué mensajes ejecutaron qué contratos
       const rewardAccountAddress =
-        getStakingEventAttribute([updateRewardsEvent], "update-rewards", "_contract_address") ||
+        getContractAddressForMsgIndex(txEvents, msgIndex) ||
+        (updateRewardsEvent
+          ? getStakingEventAttribute([updateRewardsEvent], "update-rewards", "_contract_address")
+          : null) ||
         getStakingEventAttribute([updateUserRewardsEvent], "update-user-rewards", "_contract_address") ||
         getStakingEventAttribute(txEvents, "execute", "_contract_address") ||
         getContractAddressFromEvents(txEvents);
 
       if (!rewardAccountAddress) continue;
 
-      // Extraer datos de recompensas
-      const rewardsPerToken = getStakingEventAttribute([updateRewardsEvent], "update-rewards", "rewards_per_token");
-      const pendingRewards = getStakingEventAttribute([updateUserRewardsEvent], "update-user-rewards", "pending_rewards");
-      const stakedAmount = getStakingEventAttribute([updateUserRewardsEvent], "update-user-rewards", "staked_amount");
-      const totalStaked = getStakingEventAttribute([updateRewardsEvent], "update-rewards", "total_staked");
+      const rewardsPerToken = updateRewardsEvent
+        ? getStakingEventAttribute([updateRewardsEvent], "update-rewards", "rewards_per_token")
+        : null;
+      const claimedRewardsStr = getStakingEventAttribute(
+        [updateUserRewardsEvent],
+        "update-user-rewards",
+        "claimed_rewards"
+      );
 
-      // Buscar transferencia correspondiente
+      const { userStakedAmount, totalStakedAmount } = await this.computeStakeAmounts(
+        dbTransaction,
+        vaultAddress,
+        userAddress
+      );
+
       let rewardAmount = "0";
-      let rewardDenom = "";
-
-      // Buscar en transferencias (puede ser native o CW20)
-      for (const transferEvent of transferEvents) {
-        const recipient = getStakingEventAttribute([transferEvent], "transfer", "recipient");
-        if (recipient === userAddress) {
-          rewardAmount = getStakingEventAttribute([transferEvent], "transfer", "amount") || "0";
-          rewardDenom = getStakingEventAttribute([transferEvent], "transfer", "denom") || "";
-          break;
+      if (claimedRewardsStr) {
+        try {
+          const [sumRow] = await dbTransaction
+            .select({ total: sql<string>`COALESCE(SUM(${rewardClaim.amount}), 0)` })
+            .from(rewardClaim)
+            .where(
+              and(eq(rewardClaim.rewardAccountAddress, rewardAccountAddress), eq(rewardClaim.userAddress, userAddress))
+            );
+          const prevTotal = BigInt(sumRow?.total ?? "0");
+          const currentTotal = BigInt(claimedRewardsStr);
+          const delta = currentTotal > prevTotal ? currentTotal - prevTotal : BigInt(0);
+          rewardAmount = delta.toString();
+        } catch {
+          rewardAmount = "0";
         }
       }
 
-      // Si no encontramos transferencia, puede que no haya recompensas pendientes
+      let rewardDenom = "";
+
+      if (rewardAmount === "0") {
+        for (const transferEvent of transferEvents) {
+          const recipient =
+            transferEvent.attributes.find((attr) => attr.key === "recipient")?.value ||
+            transferEvent.attributes.find((attr) => attr.key === "receiver")?.value ||
+            transferEvent.attributes.find((attr) => attr.key === "to")?.value ||
+            "";
+          if (recipient !== userAddress) continue;
+
+          const amountRaw = transferEvent.attributes.find((attr) => attr.key === "amount")?.value;
+          const denomRaw = transferEvent.attributes.find((attr) => attr.key === "denom")?.value;
+
+          if (amountRaw) {
+            try {
+              const parsed = parseCoins(amountRaw);
+              if (parsed.length > 0) {
+                rewardAmount = parsed[0].amount;
+                rewardDenom = parsed[0].denom;
+              } else {
+                rewardAmount = amountRaw;
+              }
+            } catch {
+              const match = amountRaw.match(/^(\d+)([a-zA-Z/][\w/.-]*)$/);
+              if (match) {
+                rewardAmount = match[1];
+                rewardDenom = match[2];
+              } else {
+                rewardAmount = amountRaw;
+              }
+            }
+          } else if (denomRaw) {
+            rewardAmount = "0";
+            rewardDenom = denomRaw;
+          }
+
+          if (rewardAmount !== "0") break;
+        }
+      }
+
       if (rewardAmount === "0") continue;
 
-      // Obtener información del reward account
       const rewardAccount = await dbTransaction.query.stakeRewardAccount.findFirst({
         where: (account, { eq }) => eq(account.address, rewardAccountAddress),
       });
@@ -935,7 +1064,8 @@ export class StakingIndexer extends Indexer {
         where: (tx, { eq }) => eq(tx.height, height),
       });
 
-      // Insertar claim de recompensa
+      await ensureDenom(dbTransaction, rewardDenom || rewardAccount.rewardAssetDenom);
+
       const claimData: RewardClaimInsert = {
         rewardAccountAddress,
         vaultAddress,
@@ -944,14 +1074,13 @@ export class StakingIndexer extends Indexer {
         claimedAt: block.datetime,
         amount: rewardAmount,
         denom: rewardDenom || rewardAccount.rewardAssetDenom,
-        stakedAmount: stakedAmount || "0",
-        totalStaked: totalStaked || "0",
+        stakedAmount: userStakedAmount,
+        totalStaked: totalStakedAmount,
         rewardsPerToken: rewardsPerToken || "0",
       };
 
       await dbTransaction.insert(rewardClaim).values(claimData);
 
-      // Insertar evento
       const eventData: StakingEventInsert = {
         vaultAddress,
         eventType: "claim_rewards",

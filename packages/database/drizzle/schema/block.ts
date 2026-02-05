@@ -21,6 +21,7 @@ export const block = pgTable(
       mode: "date",
     }).notNull(),
     hash: varchar("hash", { length: 255 }).notNull(),
+    parentHash: varchar("parent_hash", { length: 255 }),
     proposer: varchar("proposer", { length: 255 }).notNull(),
     dayId: uuid("day_id")
       .references(() => day.id)

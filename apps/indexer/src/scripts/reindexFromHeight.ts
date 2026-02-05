@@ -97,6 +97,22 @@ async function run() {
       DELETE FROM "nft_transfer"
       WHERE "transferred_on_block_height" >= ${startHeight}
     `);
+    await tx.execute(sql`
+      DELETE FROM "nft_mint"
+      WHERE "mint_block_height" >= ${startHeight}
+    `);
+    await tx.execute(sql`
+      DELETE FROM "nft_auction_bid"
+      WHERE "bid_block_height" >= ${startHeight}
+         OR "refunded_block_height" >= ${startHeight}
+    `);
+    await tx.execute(sql`
+      DELETE FROM "nft_auction"
+      WHERE "created_block_height" >= ${startHeight}
+         OR "closed_block_height" >= ${startHeight}
+         OR "finalized_block_height" >= ${startHeight}
+         OR "voided_block_height" >= ${startHeight}
+    `);
 
     await tx.execute(sql`
       DELETE FROM "stake_reward_account"

@@ -11,6 +11,7 @@ export async function mapCollection(collection: Collection, statsPeriod?: "24h" 
     symbol: collection.symbol,
     mintContract: collection.mintContract,
     marketContract: collection.marketContract,
+    marketDenom: collection.marketDenom,
     minter: collection.minter,
     creator: collection.creator,
     description: collection.description,
@@ -23,6 +24,19 @@ export async function mapCollection(collection: Collection, statsPeriod?: "24h" 
     startTime: collection.startTime,
     unitPrice: collection.unitPrice,
     unitDenom: collection.unitDenom,
+    collectorAddress: collection.collectorAddress,
+    tradingFeeBps: collection.tradingFeeBps,
+    minPrice: collection.minPrice,
+    auctionContract: collection.auctionContract,
+    auctionDenom: collection.auctionDenom,
+    auctionCollectorAddress: collection.auctionCollectorAddress,
+    auctionTradingFeeBps: collection.auctionTradingFeeBps,
+    auctionMinPrice: collection.auctionMinPrice,
+    auctionMinBidIncrement: collection.auctionMinBidIncrement,
+    auctionMinDuration: collection.auctionMinDuration,
+    auctionMaxDuration: collection.auctionMaxDuration,
+    auctionClosedDuration: collection.auctionClosedDuration,
+    auctionBufferDuration: collection.auctionBufferDuration,
     ...stats
   };
 }

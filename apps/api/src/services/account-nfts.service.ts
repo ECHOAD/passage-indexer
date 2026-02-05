@@ -9,6 +9,7 @@ import {
   isNull,
   notInArray,
   nft,
+  nftAuction,
   nftListing,
   sql
 } from "database";
@@ -28,7 +29,7 @@ export async function getAccountNfts({
                                      }: {
   ownerAddress: string;
   collectionAddress?: string;
-  saleType?: "FIXED_PRICE" | "NOT_FOR_SALE" | string;
+  saleType?: "FIXED_PRICE" | "LIVE_AUCTION" | "NOT_FOR_SALE" | string;
   sort: AccountNftsSort;
   skip: number;
   limit: number;
@@ -43,7 +44,15 @@ export async function getAccountNfts({
       AND ${nftListing.unlistedBlockHeight} IS NULL
     )
   `;
-  const noOpenListingExists = sql<boolean>`NOT (${hasOpenListingExists})`;
+  const hasActiveAuctionExists = sql<boolean>`
+    EXISTS (
+      SELECT 1
+      FROM ${nftAuction}
+      WHERE ${nftAuction.nftId} = ${nft.id}
+      AND ${nftAuction.status} = 'active'
+    )
+  `;
+  const noActiveSaleExists = sql<boolean>`NOT (${hasOpenListingExists} OR ${hasActiveAuctionExists})`;
 
   const minPriceCondition =
       typeof minPrice === "number"
@@ -76,7 +85,8 @@ export async function getAccountNfts({
       notInArray(nft.collection, IGNORED_COLLECTIONS),
       collectionAddress ? eq(nft.collection, collectionAddress) : undefined,
       saleType === "FIXED_PRICE" ? hasOpenListingExists : undefined,
-      saleType === "NOT_FOR_SALE" ? noOpenListingExists : undefined,
+      saleType === "LIVE_AUCTION" ? hasActiveAuctionExists : undefined,
+      saleType === "NOT_FOR_SALE" ? noActiveSaleExists : undefined,
       minPriceCondition,
       maxPriceCondition
   );

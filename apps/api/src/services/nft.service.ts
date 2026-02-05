@@ -1,14 +1,14 @@
 // nft.service.ts
 import {
   and, asc, block, block as blockTable, collection, count, day as dayTable, db, desc, eq,
-  isNull, nft, nftBid, nftListing, nftTrait, aliasedTable as alias, inArray, nftToTrait,
+  isNull, nft, nftAuction, nftBid, nftListing, nftTrait, aliasedTable as alias, inArray, nftToTrait,
   nftSale, notInArray, sql
 } from "database";
 import { getLastProcessedISODate } from "./block.service";
 import { IGNORED_COLLECTIONS } from "@src/utils/constants";
 import {getCollectionStats, getFloorPrice} from "@src/services/collection.service";
 
-type SaleType = "FIXED_PRICE" | "NOT_FOR_SALE" | string;
+type SaleType = "FIXED_PRICE" | "LIVE_AUCTION" | "NOT_FOR_SALE" | string;
 type TraitInput = { trait_type: string; trait_value: string };
 type Period = "24h" | "7d" | "30d";
 type GetNftsArgs = {
@@ -31,6 +31,13 @@ const existsOpenListing = (nftIdExpr: any) => sql<boolean>`
     SELECT 1 FROM ${nftListing}
     WHERE ${nftListing.nft} = ${nftIdExpr}
     AND ${nftListing.unlistedBlockHeight} IS NULL
+    )`;
+
+const existsActiveAuction = (nftIdExpr: any) => sql<boolean>`
+    EXISTS (
+    SELECT 1 FROM ${nftAuction}
+    WHERE ${nftAuction.nftId} = ${nftIdExpr}
+    AND ${nftAuction.status} = 'active'
     )`;
 
 function priceBounds(nftIdExpr: any, minPrice?: number, maxPrice?: number) {
@@ -99,7 +106,10 @@ function traitsWhere({
 function saleTypeWhere(saleType: SaleType | undefined, nftIdExpr: any) {
   if (!saleType) return undefined;
   if (saleType === "FIXED_PRICE") return existsOpenListing(nftIdExpr);
-  if (saleType === "NOT_FOR_SALE") return sql<boolean>`NOT (${existsOpenListing(nftIdExpr)})`;
+  if (saleType === "LIVE_AUCTION") return existsActiveAuction(nftIdExpr);
+  if (saleType === "NOT_FOR_SALE") {
+    return sql<boolean>`NOT (${existsOpenListing(nftIdExpr)} OR ${existsActiveAuction(nftIdExpr)})`;
+  }
   return undefined;
 }
 
@@ -362,6 +372,7 @@ export async function getNftsWithStats(args: GetNftsArgs) {
             forSaleRawTokenId: nftListing.rawTokenId,
             forSalePrice: nftListing.forSalePrice,
             forSaleDenom: nftListing.forSaleDenom,
+            hasActiveAuction: existsActiveAuction(nft.id).as("has_active_auction"),
 
             totalSales: sql<number>`COALESCE(${salesAgg.totalSales}, 0)`.as("total_sales"),
             totalVolume: salesAgg.totalVolume,

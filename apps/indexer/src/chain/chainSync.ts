@@ -315,6 +315,7 @@ async function insertBlocks(startHeight: number, endHeight: number) {
       datetime: blockDatetime,
       isProcessed: false,
       hash: blockData.block_id.hash,
+      parentHash: blockData.block.header.last_block_id?.hash || null,
       proposer: blockData.block.header.proposer_address,
       totalTxCount: (lastInsertedBlock?.totalTxCount ?? 0) + txs.length,
       dayId: blockDay.id,

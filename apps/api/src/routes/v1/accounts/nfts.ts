@@ -74,7 +74,7 @@ export default new OpenAPIHono().openapi(route, async (c) => {
   const skip = parseInt(c.req.valid("query").skip);
   const limit = Math.min(maxLimit, parseInt(c.req.valid("query").limit));
   const collectionAddress = c.req.valid("query").collectionAddress;
-  const saleType = c.req.valid("query").saleType as "FIXED_PRICE" | "NOT_FOR_SALE" | undefined;
+  const saleType = c.req.valid("query").saleType as "FIXED_PRICE" | "LIVE_AUCTION" | "NOT_FOR_SALE" | undefined;
   const sort = (c.req.valid("query").sort as AccountNftsSort | undefined) ?? "tokenIdAsc";
 
   const minPrice = c.req.valid("query").minPrice ? Math.max(0, parseInt(c.req.valid("query").minPrice)) : null;

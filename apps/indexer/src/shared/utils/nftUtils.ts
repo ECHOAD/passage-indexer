@@ -8,25 +8,82 @@ export function parseTokenId(tokenId: string) {
 type TxEventType =
   | "transfer"
   | "coin_spent"
+  | "coin_received"
   | "instantiate"
-  | "wasm"
-  | "wasm-accept-bid"
-  | "wasm-set-ask"
-  | "wasm-remove-ask"
-  | "wasm-set-bid"
-  | "wasm-remove-bid"
-  | "wasm-match-bid"
-  | "wasm-set-collection-bid"
-  | "wasm-remove-collection-bid"
-  | "wasm-accept-collection-bid"
-  | "wasm-finalize-sale"
-  | "wasm-payout-market"
-  | "wasm-payout-royalty"
-  | "wasm-payout-seller"
-  | "wasm-refund-bidder";
-export function getEventAttributeValue(events: TransactionEventWithAttributes[], eventType: TxEventType, attributeKey: string) {
-    const event = events.find((event) => event.type === eventType);
-    return event?.attributes.find((attr) => attr.key === attributeKey && attr.value)?.value ?? null;
+  | "execute"
+  | "message"
+  | "wasm";
+
+const WASM_EVENT_PREFIX = "wasm-";
+
+function getEventTypeCandidates(eventType: string): string[] {
+  if (eventType === "wasm" || eventType === "instantiate" || eventType === "execute" || eventType === "message") {
+    return [eventType];
+  }
+
+  if (eventType.startsWith(WASM_EVENT_PREFIX)) {
+    return [eventType, eventType.slice(WASM_EVENT_PREFIX.length)];
+  }
+
+  return [eventType, `${WASM_EVENT_PREFIX}${eventType}`];
+}
+
+function findEventByType(
+  events: TransactionEventWithAttributes[],
+  eventType: string
+): TransactionEventWithAttributes | undefined {
+  const candidates = getEventTypeCandidates(eventType);
+  const direct = events.find((event) => candidates.includes(event.type));
+  if (direct) return direct;
+
+  if (!candidates.includes("wasm")) {
+    return events.find((event) => {
+      if (event.type !== "wasm") return false;
+      const action = event.attributes.find((attr) => attr.key === "action")?.value;
+      return action ? candidates.includes(action) : false;
+    });
+  }
+
+  return undefined;
+}
+
+export function findEventsByType(
+  events: TransactionEventWithAttributes[],
+  eventType: string
+): TransactionEventWithAttributes[] {
+  const candidates = getEventTypeCandidates(eventType);
+  const direct = events.filter((event) => candidates.includes(event.type));
+  if (direct.length > 0) return direct;
+
+  if (!candidates.includes("wasm")) {
+    return events.filter((event) => {
+      if (event.type !== "wasm") return false;
+      const action = event.attributes.find((attr) => attr.key === "action")?.value;
+      return action ? candidates.includes(action) : false;
+    });
+  }
+
+  return [];
+}
+
+export function getEventAttributeValue(
+  events: TransactionEventWithAttributes[],
+  eventType: TxEventType | string,
+  attributeKey: string
+) {
+  const event = findEventByType(events, eventType);
+  return event?.attributes.find((attr) => attr.key === attributeKey && attr.value)?.value ?? null;
+}
+
+export function getEventAttributeValues(
+  events: TransactionEventWithAttributes[],
+  eventType: TxEventType | string,
+  attributeKey: string
+): string[] {
+  const matched = findEventsByType(events, eventType);
+  return matched
+    .map((event) => event.attributes.find((attr) => attr.key === attributeKey && attr.value)?.value)
+    .filter((value): value is string => Boolean(value));
 }
 
 /** Helpers */

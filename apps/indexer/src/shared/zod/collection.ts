@@ -166,6 +166,34 @@ export const WhitelistAddMembersSchema = z.object({
   })
 });
 
+export const WhitelistRemoveMembersSchema = z.object({
+  remove_members: z.object({
+    to_remove: z.array(z.string())
+  })
+});
+
+export const WhitelistUpdateStartTimeSchema = z.object({
+  update_start_time: z.string()
+});
+
+export const WhitelistUpdateEndTimeSchema = z.object({
+  update_end_time: z.string()
+});
+
+export const WhitelistUpdatePerAddressLimitSchema = z.object({
+  update_per_address_limit: z.number()
+});
+
+export const WhitelistIncreaseMemberLimitSchema = z.object({
+  increase_member_limit: z.number()
+});
+
+export const CollectionSetWhitelistSchema = z.object({
+  set_whitelist: z.object({
+    whitelist: z.string().nullable()
+  })
+});
+
 export type CollectionTx = z.infer<typeof CollectionTxSchema>;
 export type CollectionTx2 = z.infer<typeof CollectionMinterTxSchema2>;
 export type CollectionMinterTx = z.infer<typeof CollectionMinterTxSchema>;
@@ -182,3 +210,9 @@ export type CollectionSetAdminTx = z.infer<typeof CollectionSetAdminSchema>;
 export type CollectionWithdrawTx = z.infer<typeof CollectionWithdrawSchema>;
 export type WhitelistInfoTx = z.infer<typeof WhitelistInfoSchema>;
 export type WhitelistAddMembersTx = z.infer<typeof WhitelistAddMembersSchema>;
+export type WhitelistRemoveMembersTx = z.infer<typeof WhitelistRemoveMembersSchema>;
+export type WhitelistUpdateStartTimeTx = z.infer<typeof WhitelistUpdateStartTimeSchema>;
+export type WhitelistUpdateEndTimeTx = z.infer<typeof WhitelistUpdateEndTimeSchema>;
+export type WhitelistUpdatePerAddressLimitTx = z.infer<typeof WhitelistUpdatePerAddressLimitSchema>;
+export type WhitelistIncreaseMemberLimitTx = z.infer<typeof WhitelistIncreaseMemberLimitSchema>;
+export type CollectionSetWhitelistTx = z.infer<typeof CollectionSetWhitelistSchema>;

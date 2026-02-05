@@ -67,6 +67,10 @@ Key features:
 
 The API provides access to the indexed data stored in the PostgreSQL database. It's built using Hono, a lightweight web framework for Node.js.
 
+API documentation (Swagger/OpenAPI):
+- Swagger UI: `/v1/swagger`
+- OpenAPI JSON: `/v1/doc`
+
 ## Database
 
 The shared database package uses Drizzle ORM for database operations. It includes schema definitions and utility functions for database interactions.
@@ -84,7 +88,7 @@ pnpm run dc:build
 
 This will delete indexed data at and after the given block height, then let the indexer rebuild from that point. By default it also clears the local block cache (use `--keep-cache` to skip that).
 
-Build the indexer first to ensure `dist` exists:
+The reindex script runs a production build to ensure `dist` exists. You can also build explicitly:
 
 ```
 pnpm --filter indexer run build

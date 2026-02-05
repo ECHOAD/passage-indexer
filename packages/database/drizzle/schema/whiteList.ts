@@ -6,6 +6,8 @@ import {
   timestamp,
   integer,
   index,
+  numeric,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { collection } from "./collection";
 
@@ -27,11 +29,13 @@ export const whitelist = pgTable(
     memberLimit: integer("member_limit").notNull(),
     numMembers: integer("num_members").notNull(),
     perAddressLimit: integer("per_address_limit").notNull(),
-    unitPrice: integer("unit_price").notNull(),
+    unitPrice: numeric("unit_price").notNull(),
+    unitDenom: varchar("unit_denom", { length: 255 }).notNull(),
   },
   (table) => {
     return {
       collection: index("whitelist_collection").on(table.collection),
+      address: uniqueIndex("whitelist_address_unique").on(table.address),
     };
   }
 );

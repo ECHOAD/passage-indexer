@@ -21,6 +21,7 @@ export const collection = pgTable(
     symbol: varchar("symbol", { length: 255 }).notNull(),
     mintContract: varchar("mint_contract", { length: 255 }),
     marketContract: varchar("market_contract", { length: 255 }),
+    marketDenom: varchar("market_denom", { length: 255 }),
     minter: varchar("minter", { length: 255 }).notNull(),
     creator: varchar("creator", { length: 255 }).notNull(),
     description: varchar("description").notNull(),
@@ -43,10 +44,22 @@ export const collection = pgTable(
     collectorAddress: varchar("collector_address", { length: 255 }),
     tradingFeeBps: numeric("trading_fee_bps"),
     minPrice: numeric("min_price"),
+    auctionContract: varchar("auction_contract", { length: 255 }),
+    auctionDenom: varchar("auction_denom", { length: 255 }),
+    auctionCollectorAddress: varchar("auction_collector_address", { length: 255 }),
+    auctionTradingFeeBps: numeric("auction_trading_fee_bps"),
+    auctionMinPrice: numeric("auction_min_price"),
+    auctionMinBidIncrement: numeric("auction_min_bid_increment"),
+    auctionMinDuration: integer("auction_min_duration"),
+    auctionMaxDuration: integer("auction_max_duration"),
+    auctionClosedDuration: integer("auction_closed_duration"),
+    auctionBufferDuration: integer("auction_buffer_duration"),
   },
   (table) => {
     return {
       mint_contract: index("collection_min_contract").on(table.mintContract),
+      market_contract: index("collection_market_contract").on(table.marketContract),
+      auction_contract: index("collection_auction_contract").on(table.auctionContract),
     };
   }
 );

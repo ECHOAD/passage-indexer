@@ -86,13 +86,15 @@ export const NftMetadataSchema = z.object({
   background_color: z.string().nullable().optional(),
   animation_url: z.string().nullable().optional(),
   youtube_url: z.string().nullable().optional(),
-  attributes: z.array(
-    z.object({
-      display_type: z.string(),
-      trait_type: z.string(),
-      value: z.string()
-    })
-  )
+  attributes: z
+    .array(
+      z.object({
+        display_type: z.string().nullable().optional(),
+        trait_type: z.string().nullable().optional(),
+        value: z.union([z.string(), z.number(), z.boolean()]).nullable().optional()
+      })
+    )
+    .optional()
 });
 
 export type NftMintTx = z.infer<typeof NftMintTxSchema>;
