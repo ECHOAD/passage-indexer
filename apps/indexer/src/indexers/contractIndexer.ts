@@ -1835,12 +1835,13 @@ export class ContractIndexer extends Indexer {
     if (!admin) throw new Error("Admin not found");
 
     const unitPrice = whitelistInfo.unit_price?.amount ?? rawUnitPrice?.amount ?? "0";
-    let unitDenom = whitelistInfo.unit_price?.denom ?? rawUnitPrice?.denom ?? null;
+    let unitDenom = whitelistInfo.unit_price?.denom ?? rawUnitPrice?.denom ?? activeChain.udenom;
+
     if (!unitDenom) {
-      unitDenom = activeChain.udenom;
-      console.warn(
-        `[whitelist] Missing unit_price.denom at height ${height} (msg ${msg.id}). Defaulting to ${unitDenom}. raw=${JSON.stringify(rawUnitPrice ?? whitelistInfo.unit_price ?? null)}`
+      console.error(
+        `[whitelist] CRITICAL: unitDenom is still null/undefined after fallback! height=${height}, msg=${msg.id}, activeChain.udenom=${activeChain.udenom}, raw=${JSON.stringify({ whitelistInfo: whitelistInfo.unit_price, rawUnitPrice })}`
       );
+      throw new Error(`unitDenom is null for whitelist at height ${height}`);
     }
 
     await ensureDenom(dbTransaction, unitDenom);

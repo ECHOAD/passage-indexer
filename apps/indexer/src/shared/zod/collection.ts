@@ -157,7 +157,7 @@ export const WhitelistInfoSchema = z.object({
   unit_price: z.object({
     amount: z.string(),
     denom: z.string()
-  })
+  }).optional()
 });
 
 export const WhitelistAddMembersSchema = z.object({
