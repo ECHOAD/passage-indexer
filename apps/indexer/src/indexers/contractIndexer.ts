@@ -435,6 +435,13 @@ export class ContractIndexer extends Indexer {
       dbTransactionKeys: dbTransaction ? Object.keys(dbTransaction).slice(0, 10) : 'undefined'
     });
 
+    if (dbTransaction?.query) {
+      const queryKeys = Object.keys(dbTransaction.query);
+      console.log('[handleCreateCollectionWithMinter] dbTransaction.query keys:', queryKeys);
+      console.log('[handleCreateCollectionWithMinter] Has whitelist?:', 'whitelist' in dbTransaction.query);
+      console.log('[handleCreateCollectionWithMinter] Has collection?:', 'collection' in dbTransaction.query);
+    }
+
     const { minter: minterContract, cw721: collectionAddress } = extractMinterAndCw721OnInstantiateReply(txEvents)
 
 
@@ -442,7 +449,7 @@ export class ContractIndexer extends Indexer {
 
     await ensureDenom(dbTransaction, collectionTx.unit_price.denom);
 
-    console.log('[handleCreateCollectionWithMinter] About to call findFirst, dbTransaction.query:', typeof dbTransaction?.query);
+    console.log('[handleCreateCollectionWithMinter] About to call findFirst, dbTransaction.query.whitelist:', dbTransaction?.query?.whitelist);
     const whitelistDb = await dbTransaction.query.whitelist.findFirst({
       where: (whitelist, { eq }) => eq(whitelist.address, (collectionTx.whitelist ?? ''))
     })
