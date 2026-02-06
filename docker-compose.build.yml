@@ -1,6 +1,6 @@
 services:
   api:
-    image: passage-api:${API_TAG:-latest}
+    image: passage-api:${API_TAG:-mainnet}
     build:
       dockerfile: docker/Dockerfile.node
       target: production
@@ -8,7 +8,7 @@ services:
         WORKSPACE: api
 
   indexer:
-    image: passage-indexer:${INDEXER_TAG:-latest}
+    image: passage-indexer:${INDEXER_TAG:-mainnet}
     build:
       dockerfile: docker/Dockerfile.node
       target: production

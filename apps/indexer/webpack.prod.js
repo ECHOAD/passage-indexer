@@ -7,6 +7,7 @@ module.exports = {
   entry: {
     index: "./src/index.ts",
     reindexFromHeight: "./src/scripts/reindexFromHeight.ts",
+    "scripts/reprocessBlockRange": "./src/scripts/reprocessBlockRange.ts",
   },
   mode: NODE_ENV,
   target: "node",

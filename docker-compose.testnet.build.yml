@@ -1,0 +1,67 @@
+services:
+  api:
+    container_name: api-testnet
+    image: passage-api:${API_TAG:-testnet}
+    restart: unless-stopped
+    env_file: .env.api
+    ports:
+      - "3002:3001"
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.node
+      target: production
+      args:
+        WORKSPACE: api
+    depends_on:
+      postgres:
+        condition: service_started
+    networks:
+      - blockchain-nodes
+    volumes:
+      - api-data:/home/data  # Usando un volumen en vez de bind mount
+
+  postgres:
+    image: postgres:17
+    container_name: db_passage_indexer_testnet
+    restart: on-failure
+    environment:
+      POSTGRES_USER: indexer-passage
+      POSTGRES_PASSWORD: TheSecretOne_
+      POSTGRES_DB: passage
+    volumes:
+      - postgres-data:/var/lib/postgresql/data  # Usando un volumen en vez de bind mount
+    ports:
+      - "5433:5432"
+    networks:
+      - blockchain-nodes
+
+  indexer:
+    container_name: indexer-testnet
+    image: passage-indexer:${INDEXER_TAG:-testnet}
+    restart: unless-stopped
+    env_file: .env.indexer
+    depends_on:
+      postgres:
+        condition: service_started
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.node
+      target: production
+      args:
+        WORKSPACE: indexer
+    networks:
+      - blockchain-nodes
+    volumes:
+      - indexer-data:/home/  # Usando un volumen en vez de bind mount
+
+networks:
+  blockchain-nodes:
+    external: true
+#    driver: bridge
+#    name: blockchain-nodes
+
+
+volumes:
+  api-data:
+  postgres-data:
+  indexer-data:
