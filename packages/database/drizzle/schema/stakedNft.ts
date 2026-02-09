@@ -1,4 +1,4 @@
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
   pgTable,
   uuid,
@@ -61,10 +61,14 @@ export const stakedNft = pgTable(
     }),
   },
   (table) => ({
-    vaultCollectionTokenIdx: uniqueIndex("staked_nft_vault_collection_token_idx").on(
+    vaultCollectionTokenActiveIdx: uniqueIndex("staked_nft_vault_collection_token_active_idx")
+      .on(table.vaultAddress, table.collectionAddress, table.tokenId)
+      .where(sql.raw(`${table.unstakedAtHeight.name} IS NULL`)),
+    vaultCollectionTokenHeightIdx: uniqueIndex("staked_nft_vault_collection_token_height_idx").on(
       table.vaultAddress,
       table.collectionAddress,
-      table.tokenId
+      table.tokenId,
+      table.stakedAtHeight
     ),
     stakerIdx: index("staked_nft_staker_idx").on(table.stakerAddress, table.stakedAt),
     vaultIdx: index("staked_nft_vault_idx").on(table.vaultAddress, table.stakedAt),

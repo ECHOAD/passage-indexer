@@ -383,7 +383,27 @@ export class StakingIndexer extends Indexer {
       return; // No es JSON válido
     }
 
-    const contractType = await this.identifyContractType(contractAddress, txEvents);
+    let contractType = await this.identifyContractType(contractAddress, txEvents);
+    if (!contractType) {
+      const vault = await dbTransaction.query.stakeVault.findFirst({
+        where: (vault, { eq }) => eq(vault.address, contractAddress),
+      });
+      if (vault) {
+        contractType = "nft_vault";
+        this.knownVaultAddresses.set(contractAddress, vault.factoryAddress);
+        if (vault.factoryAddress) {
+          this.vaultFactoryAddresses.add(vault.factoryAddress);
+        }
+      } else {
+        const rewardAccount = await dbTransaction.query.stakeRewardAccount.findFirst({
+          where: (account, { eq }) => eq(account.address, contractAddress),
+        });
+        if (rewardAccount) {
+          contractType = "stake_rewards";
+          this.knownRewardAccountAddresses.set(contractAddress, rewardAccount.vaultAddress);
+        }
+      }
+    }
 
     if (contractType === "vault_factory") {
       // Ejecuciones del factory (crear vaults)
@@ -687,7 +707,7 @@ export class StakingIndexer extends Indexer {
         nftId: dbNft?.id || null,
       };
 
-      await dbTransaction.insert(stakedNft).values(stakedNftData);
+      await dbTransaction.insert(stakedNft).values(stakedNftData).onConflictDoNothing();
     }
 
     const { userStakedAmount, totalStakedAmount } = await this.computeStakeAmounts(
