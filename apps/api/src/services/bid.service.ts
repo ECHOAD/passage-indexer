@@ -18,7 +18,7 @@ import {
 
 type MappedBidType = {
   nft: {
-    tokenId: number;
+    tokenId: string;
     owner: string;
     metadata: any;
     createdOnBlockHeight: number;
@@ -112,7 +112,7 @@ function mapBid(
   return {
     nft: nft
         ? {
-          tokenId: nft.tokenId,
+          tokenId: nft.rawTokenId ?? nft.tokenId.toString(),
           owner: nft.owner,
           metadata: nft.metadata,
           createdOnBlockHeight: nft.createdOnBlockHeight,

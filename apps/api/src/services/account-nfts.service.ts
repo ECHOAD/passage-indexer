@@ -108,7 +108,7 @@ export async function getAccountNfts({
 
   const rows = await db
       .select({
-        tokenId: nft.tokenId,
+        tokenId: nft.rawTokenId,
         owner: nft.owner,
         collectionAddress: nft.collection,
         collectionName: collection.name,

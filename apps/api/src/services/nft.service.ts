@@ -190,7 +190,7 @@ export async function getRecentNftSales({
         salePrice: grossExpr,
         saleDenom: nftSale.saleDenom,
         nftId: nft.id,
-        tokenId: nft.tokenId,
+        tokenId: nft.rawTokenId,
         owner: nft.owner,
         collectionAddress: collection.address,
         collectionName: collection.name,
@@ -360,7 +360,7 @@ export async function getNftsWithStats(args: GetNftsArgs) {
           .with(salesAgg, lastSaleInfo)
           .select({
             id: nft.id,
-            tokenId: nft.tokenId,
+            tokenId: nft.rawTokenId,
             owner: nft.owner,
             collectionAddress: collection.address,
             collectionName: collection.name,

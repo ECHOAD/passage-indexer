@@ -35,19 +35,16 @@ export interface ChainDef {
 export const activeChain: ChainDef = {
   code: "passage",
   rpcNodes: [
-    "https://rpc-passage.ecostake.com",
-    "https://passage-rpc.polkachu.com",
-    "https://rpc.passage.vitwit.com",
-    "https://tendermint.passage.nodefleet.org"
+    "http://199.189.85.66:26695"
   ],
   cosmosDirectoryId: "passage",
   connectionString: process.env.PassageDatabaseCS,
-  genesisFileUrl: "https://raw.githubusercontent.com/envadiv/mainnet/main/passage-1/genesis.json",
+  genesisFileUrl: "https://raw.githubusercontent.com/nodefleet/testnet-fleet/refs/heads/main/alphafleet-1/genesis.json",
   coinGeckoId: "passage",
   bech32Prefix: "pasg",
   denom: "pasg",
   udenom: "upasg",
-  startHeight: 4088501
+  startHeight: 0
 };
 
 export const dataFolderPath = path.join(env.DataFolder, activeChain.code);

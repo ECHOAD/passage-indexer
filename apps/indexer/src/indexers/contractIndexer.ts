@@ -946,10 +946,17 @@ export class ContractIndexer extends Indexer {
     }
 
     for (const token_migration of collectionMigration.migrate.migrations) {
+      const rawTokenId = token_migration.token_id.toString();
+      const normalizedTokenId = parseTokenId(rawTokenId);
+      if (Number.isNaN(normalizedTokenId)) {
+        throw new Error(`Invalid token id on migration: ${rawTokenId}`);
+      }
+
       const dbNft = await dbTransaction
         .insert(nft)
         .values({
-          tokenId: parseTokenId(token_migration.token_id),
+          tokenId: normalizedTokenId,
+          rawTokenId,
           owner: token_migration.owner,
           migratedOnBlockHeight: height,
           metadata: token_migration.extension ?? {},
@@ -977,10 +984,17 @@ export class ContractIndexer extends Indexer {
     }
 
     for (const token_migration of collectionMigrationData.migrate_data.migrations.tokens) {
+      const rawTokenId = token_migration.token_id.toString();
+      const normalizedTokenId = parseTokenId(rawTokenId);
+      if (Number.isNaN(normalizedTokenId)) {
+        throw new Error(`Invalid token id on migration data: ${rawTokenId}`);
+      }
+
       const dbNft = await dbTransaction
         .insert(nft)
         .values({
-          tokenId: token_migration.token_id,
+          tokenId: normalizedTokenId,
+          rawTokenId,
           metadata: token_migration.metadata ?? {},
           collection: dbCollection.address,
           createdOnBlockHeight: height,
@@ -989,6 +1003,7 @@ export class ContractIndexer extends Indexer {
         .onConflictDoUpdate({
           target: [nft.collection, nft.tokenId],
           set: {
+            rawTokenId,
             metadata: token_migration.metadata ?? {}
           }
         })
@@ -1008,10 +1023,17 @@ export class ContractIndexer extends Indexer {
     }
 
     for (const token_metadata of collectionMetadata.upsert_token_metadatas.token_metadatas) {
+      const rawTokenId = token_metadata.token_id.toString();
+      const normalizedTokenId = parseTokenId(rawTokenId);
+      if (Number.isNaN(normalizedTokenId)) {
+        throw new Error(`Invalid token id on metadata upsert: ${rawTokenId}`);
+      }
+
       const dbNft = await dbTransaction
         .insert(nft)
         .values({
-          tokenId: token_metadata.token_id,
+          tokenId: normalizedTokenId,
+          rawTokenId,
           metadata: token_metadata.metadata ?? {},
           collection: dbCollection.address,
           createdOnBlockHeight: height
@@ -1019,6 +1041,7 @@ export class ContractIndexer extends Indexer {
         .onConflictDoUpdate({
           target: [nft.collection, nft.tokenId],
           set: {
+            rawTokenId,
             metadata: token_metadata.metadata ?? {}
           }
         })
@@ -1037,7 +1060,7 @@ export class ContractIndexer extends Indexer {
     txId?: string
   ) {
     const tokenId = getEventAttributeValue(txEvents, "wasm", "token_id");
-    const normalizedTokenId = tokenId && parseTokenId(tokenId);
+    const normalizedTokenId = tokenId != null ? parseTokenId(tokenId) : NaN;
     const mintPrice = getEventAttributeValue(txEvents, "wasm", "mint_price");
     const recipient =
       getEventAttributeValue(txEvents, "wasm", "recipient") ||
@@ -1052,7 +1075,7 @@ export class ContractIndexer extends Indexer {
       throw new Error(`Collection not found for mint contract ${contractAddress}`);
     }
 
-    if (!normalizedTokenId) {
+    if (Number.isNaN(normalizedTokenId)) {
       throw new Error(`Token id not found for collection ${dbCollection.address}`);
     }
 
@@ -1064,6 +1087,7 @@ export class ContractIndexer extends Indexer {
     const [updated] = await dbTransaction
       .update(nft)
       .set({
+        rawTokenId: tokenId ?? normalizedTokenId.toString(),
         mintedOnBlockHeight: height,
         mintPrice: mintPrice ?? "0",
         mintDenom: mintDenom,
@@ -1079,6 +1103,7 @@ export class ContractIndexer extends Indexer {
           .insert(nft)
           .values({
             tokenId: normalizedTokenId,
+            rawTokenId: tokenId ?? normalizedTokenId.toString(),
             metadata: {},
             collection: dbCollection.address,
             createdOnBlockHeight: height,
@@ -1120,7 +1145,7 @@ export class ContractIndexer extends Indexer {
   ) {
     const tokenId = getEventAttributeValue(txEvents, "wasm", "token_id");
     const mintPrice = getEventAttributeValue(txEvents, "wasm", "mint_price");
-    const normalizedTokenId = tokenId && parseTokenId(tokenId);
+    const normalizedTokenId = tokenId != null ? parseTokenId(tokenId) : NaN;
 
     const dbCollection = await dbTransaction.query.collection.findFirst({
       where: (collection, { or, eq }) => or(eq(collection.address, contractAddress), eq(collection.mintContract, contractAddress))
@@ -1130,7 +1155,7 @@ export class ContractIndexer extends Indexer {
       throw new Error(`Collection not found for mint contract ${contractAddress}`);
     }
 
-    if (!normalizedTokenId) {
+    if (Number.isNaN(normalizedTokenId)) {
       throw new Error(`Token id not found for collection ${dbCollection.address}`);
     }
 
@@ -1150,6 +1175,7 @@ export class ContractIndexer extends Indexer {
     const [updated] = await dbTransaction
       .update(nft)
       .set({
+        rawTokenId: tokenId ?? normalizedTokenId.toString(),
         mintedOnBlockHeight: height,
         airDroppedOnBlockHeight: height,
         mintPrice: mintPrice ?? "0",
@@ -1166,6 +1192,7 @@ export class ContractIndexer extends Indexer {
           .insert(nft)
           .values({
             tokenId: normalizedTokenId,
+            rawTokenId: tokenId ?? normalizedTokenId.toString(),
             metadata: {},
             collection: dbCollection.address,
             createdOnBlockHeight: height,
@@ -1213,7 +1240,7 @@ export class ContractIndexer extends Indexer {
       getEventAttributeValue(txEvents, "set-ask", "collection") ||
       getEventAttributeValue(txEvents, "wasm", "collection");
     const tokenId = getEventAttributeValue(txEvents, "set-ask", "token_id") || tokenIdFromMsg;
-    const normalizedTokenId = tokenId && parseTokenId(tokenId);
+    const normalizedTokenId = parseTokenId(tokenId);
     const sellPriceStr = getEventAttributeValue(txEvents, "set-ask", "price");
     const sellPrice = sellPriceStr ? parseCoins(sellPriceStr)[0] : { amount: priceAmountFromMsg, denom: priceDenomFromMsg };
 
@@ -1236,7 +1263,7 @@ export class ContractIndexer extends Indexer {
       throw new Error(`Collection not found for market ${marketContractAddress}`);
     }
 
-    if (!normalizedTokenId) {
+    if (Number.isNaN(normalizedTokenId)) {
       throw new Error(`Token id not found for collection ${dbCollection.address}`);
     }
 
@@ -1306,9 +1333,9 @@ export class ContractIndexer extends Indexer {
       getEventAttributeValue(txEvents, "remove-ask", "collection") ||
       getEventAttributeValue(txEvents, "wasm", "collection");
     const tokenId = getEventAttributeValue(txEvents, "remove-ask", "token_id") || tokenIdFromMsg;
-    const normalizedTokenId = tokenId && parseTokenId(tokenId);
+    const normalizedTokenId = parseTokenId(tokenId);
 
-    if (!normalizedTokenId) throw new Error(`Token id not found for remove ask`);
+    if (Number.isNaN(normalizedTokenId)) throw new Error(`Token id not found for remove ask`);
 
     const dbCollection =
       (collectionAddress
@@ -1356,6 +1383,9 @@ export class ContractIndexer extends Indexer {
     txId?: string
   ) {
     const tokenId = parseTokenId(_tokenId);
+    if (Number.isNaN(tokenId)) {
+      throw new Error(`Invalid token id for set bid: ${_tokenId}`);
+    }
 
     const [dbNft] = await dbTransaction
       .select({ id: nft.id })
@@ -1410,6 +1440,9 @@ export class ContractIndexer extends Indexer {
       txId?: string
   ) {
     const tokenId = typeof _tokenId === "number" ? _tokenId : parseTokenId(_tokenId);
+    if (Number.isNaN(tokenId)) {
+      throw new Error(`Invalid token id for remove bid: ${_tokenId}`);
+    }
 
     const nftRows = await dbTransaction
         .select({ id: nft.id })
@@ -1534,7 +1567,14 @@ export class ContractIndexer extends Indexer {
       .from(nftCollectionBid)
       .innerJoin(collection, eq(collection.address, nftCollectionBid.collection))
       .innerJoin(nft, eq(nft.collection, collection.address))
-      .where(and(eq(nft.tokenId, tokenId), eq(collection.marketContract, marketContractAddress), isNull(nftCollectionBid.removedBlockHeight)));
+      .where(
+        and(
+          eq(nft.tokenId, tokenId),
+          eq(collection.marketContract, marketContractAddress),
+          eq(nftCollectionBid.owner, bidder),
+          isNull(nftCollectionBid.removedBlockHeight)
+        )
+      );
 
     if (!dbNftCollectionBid) {
       throw new Error(`Nft collection bid not found for ${tokenId} in ${marketContractAddress}`);
@@ -1565,7 +1605,7 @@ export class ContractIndexer extends Indexer {
         .where(and(eq(nftCollectionBid.id, dbNftCollectionBid.id)));
     }
 
-    this.executeNftSale(dbTransaction, txEvents, tokenId, height, marketContractAddress, "fixed_price", txId);
+    await this.executeNftSale(dbTransaction, txEvents, tokenId, height, marketContractAddress, "fixed_price", txId);
   }
 
   private async acceptBid(
@@ -1582,7 +1622,14 @@ export class ContractIndexer extends Indexer {
       .from(nftBid)
       .innerJoin(nft, eq(nft.id, nftBid.nft))
       .innerJoin(collection, eq(nft.collection, collection.address))
-      .where(and(eq(nft.tokenId, tokenId), eq(collection.marketContract, marketContractAddress), isNull(nftBid.removedBlockHeight)));
+      .where(
+        and(
+          eq(nft.tokenId, tokenId),
+          eq(collection.marketContract, marketContractAddress),
+          eq(nftBid.owner, bidder),
+          isNull(nftBid.removedBlockHeight)
+        )
+      );
 
     if (!dbNftBid) {
       throw new Error(`Nft bid not found for ${tokenId} in ${marketContractAddress}`);
@@ -1603,7 +1650,7 @@ export class ContractIndexer extends Indexer {
       })
       .where(eq(nftBid.id, dbNftBid.id));
 
-    this.executeNftSale(dbTransaction, txEvents, tokenId, height, marketContractAddress, "fixed_price", txId);
+    await this.executeNftSale(dbTransaction, txEvents, tokenId, height, marketContractAddress, "fixed_price", txId);
   }
 
   private async transferNft(
@@ -1617,6 +1664,9 @@ export class ContractIndexer extends Indexer {
     txId?: string
   ) {
     const tokenId = parseTokenId(_tokenId);
+    if (Number.isNaN(tokenId)) {
+      throw new Error(`Invalid token id for transfer: ${_tokenId}`);
+    }
     const [{ nft: dbNft }] = await dbTransaction
       .select()
       .from(nft)
@@ -1670,6 +1720,7 @@ export class ContractIndexer extends Indexer {
     const finalizeEvent = findEventsByType(txEvents, "finalize-sale")[0];
     const collectionAddress = getEventAttributeValue(txEvents, "finalize-sale", "collection");
     const buyer = getEventAttributeValue(txEvents, "finalize-sale", "buyer");
+    const paymentRecipient = getEventAttributeValue(txEvents, "finalize-sale", "payment_recipient");
     const paymentAmountStr = getEventAttributeValue(txEvents, "finalize-sale", "payment_amount");
 
     const payoutMarketPriceStr = getEventAttributeValue(txEvents, "payout-market", "coin");
@@ -1707,6 +1758,13 @@ export class ContractIndexer extends Indexer {
       throw new Error(`Nft not found for ${tokenId} in ${dbCollection.address}`);
     }
 
+    const activeListing = await dbTransaction.query.nftListing.findFirst({
+      where: and(eq(nftListing.nft, dbNft.id), isNull(nftListing.unlistedBlockHeight)),
+      orderBy: (nftListing, { desc }) => desc(nftListing.forSaleBlockHeight)
+    });
+
+    const previousOwner = paymentRecipient || activeListing?.owner || dbNft.owner!;
+
     const saleDenom =
       payoutSellerPrice?.denom ||
       payoutMarketPrice?.denom ||
@@ -1733,7 +1791,7 @@ export class ContractIndexer extends Indexer {
     await dbTransaction
       .insert(nftSale)
       .values({
-        previousOwner: dbNft.owner!,
+        previousOwner,
         newOwner: buyer,
         nft: dbNft.id,
         salePrice: sellerAmount,
@@ -1756,9 +1814,7 @@ export class ContractIndexer extends Indexer {
       .set({
         unlistedBlockHeight: height
       })
-      .where(
-        and(eq(nftListing.nft, dbNft.id), eq(nftListing.owner, dbNft.owner!), isNull(nftListing.unlistedBlockHeight))
-      );
+      .where(and(eq(nftListing.nft, dbNft.id), isNull(nftListing.unlistedBlockHeight)));
 
     const nftBidDb = await dbTransaction.query.nftBid.findFirst({
       where: and(eq(nftBid.nft, dbNft.id), eq(nftBid.owner, buyer), isNull(nftBid.removedBlockHeight))

@@ -1,8 +1,15 @@
-import {TransactionEventAttribute, TransactionEventWithAttributes} from "database";
+import { TransactionEventAttribute, TransactionEventWithAttributes } from "database";
 
-// Sometimes the tokendId has leading zeros, this function removes them
-export function parseTokenId(tokenId: string) {
-  return parseInt(tokenId);
+// Sometimes the tokenId has leading zeros, this function removes them.
+export function parseTokenId(tokenId: string | number) {
+  if (typeof tokenId === "number") {
+    return Number.isInteger(tokenId) && tokenId >= 0 ? tokenId : NaN;
+  }
+
+  const normalized = tokenId.trim();
+  if (!/^\d+$/.test(normalized)) return NaN;
+
+  return Number.parseInt(normalized, 10);
 }
 
 type TxEventType =
@@ -86,112 +93,81 @@ export function getEventAttributeValues(
     .filter((value): value is string => Boolean(value));
 }
 
-/** Helpers */
 const getFirstAttr = (
-    attrs: TransactionEventAttribute[],
-    key: string
+  attrs: TransactionEventAttribute[],
+  key: string
 ): string | undefined =>
-    attrs.find(a => a.key === key)?.value ?? undefined;
+  attrs.find((a) => a.key === key)?.value ?? undefined;
 
 /**
- * Returns all attributes for a given key,
- * skipping null values and typing them as `string`.
+ * Returns all attributes for a given key, skipping null values and typing them as `string`.
  */
 const getAllAttr = (
-    attrs: TransactionEventAttribute[],
-    key: string
+  attrs: TransactionEventAttribute[],
+  key: string
 ): { value: string; attrIdx: number }[] =>
-    attrs
-        .map((a, i) => ({ ...a, __attrIdx: (a as any).index ?? i }))
-        .filter(a => a.key === key && a.value != null)
-        .map(a => ({ value: a.value as string, attrIdx: a.__attrIdx as number }));
+  attrs
+    .map((a, i) => ({ ...a, __attrIdx: a.index ?? i }))
+    .filter((a) => a.key === key && a.value != null)
+    .map((a) => ({ value: a.value as string, attrIdx: a.__attrIdx as number }));
 
 /**
- * Extracts `{ cw721, minter }` when the CW721 contract address
- * comes from the `reply` event.
+ * Extracts `{ cw721, minter }` when the CW721 contract address comes from the `reply` event.
  *
  * Logic:
  * - CW721 is taken from the `reply` event (`_contract_address`).
- * - Minter is the other `_contract_address` found in the `instantiate` events
- *   within the same message.
- * - If a `wasm` event with `action=instantiate_cw721_reply` exists,
- *   its `_contract_address` is used as the minter directly.
+ * - Minter is taken from the `wasm` anchor (`action=instantiate_cw721_reply`)
+ *   or, as fallback, from `instantiate` events in the same message.
  */
 export function extractMinterAndCw721OnInstantiateReply(
-    events: TransactionEventWithAttributes[]
+  events: TransactionEventWithAttributes[]
 ): { cw721: string; minter: string } {
   if (!events?.length) throw new Error("No events provided.");
 
-  // --- Restrict search to the same msgIndex as the reply event
-  const replyEvt = events.find(e => e.type === "reply");
+  const replyEvt = events.find((e) => e.type === "reply" && getFirstAttr(e.attributes, "_contract_address"));
   if (!replyEvt) throw new Error("CW721 not found: no 'reply' event.");
-  const scopeMsgIndex = replyEvt.msgIndex;
 
-  const sameMsg = events.filter(e => e.msgIndex === scopeMsgIndex);
+  const cw721 = getFirstAttr(replyEvt.attributes, "_contract_address");
+  if (!cw721) throw new Error("CW721 not found in 'reply' event for this message.");
 
-  // 1️⃣ CW721 comes from the reply event
-  const minter =
-      sameMsg
-          .filter(e => e.type === "reply")
-          .map(e => getFirstAttr(e.attributes, "_contract_address"))
-          .find(Boolean) ?? undefined;
+  const sameMsg = events.filter((e) => e.msgIndex === replyEvt.msgIndex);
 
-  if (!minter) {
-    throw new Error("CW721 not found in 'reply' event for this message.");
+  const wasmAnchor = sameMsg.find(
+    (e) => e.type === "wasm" && getFirstAttr(e.attributes, "action") === "instantiate_cw721_reply"
+  );
+  const minterFromAnchor = wasmAnchor
+    ? getFirstAttr(wasmAnchor.attributes, "_contract_address")
+    : undefined;
+
+  if (minterFromAnchor) {
+    return { cw721, minter: minterFromAnchor };
   }
 
-  // 2️⃣ Try to detect the minter directly via wasm anchor
-  const wasmAnchor = sameMsg.find(
-      e =>
-          e.type === "wasm" &&
-          getFirstAttr(e.attributes, "action") === "instantiate_cw721_reply"
-  );
-  const cw721 = wasmAnchor
-      ? getFirstAttr(wasmAnchor.attributes, "_contract_address")
-      : undefined;
-
-  // 3️⃣ Collect all instantiate candidates (different from cw721)
   type CandidateMinter = { address: string; evIdx: number; attrIdx: number };
   const instantiateCandidates: CandidateMinter[] = sameMsg
-      .filter(e => e.type === "instantiate")
-      .flatMap(e =>
-          getAllAttr(e.attributes, "_contract_address").map(a => ({
-            address: a.value,
-            evIdx: e.index,
-            attrIdx: a.attrIdx,
-          }))
-      )
-      .filter(c => c.address !== minter);
+    .filter((e) => e.type === "instantiate")
+    .flatMap((e) =>
+      getAllAttr(e.attributes, "_contract_address").map((a) => ({
+        address: a.value,
+        evIdx: e.index,
+        attrIdx: a.attrIdx
+      }))
+    )
+    .filter((c) => c.address !== cw721);
 
-  // Remove duplicates by address, keeping the first one chronologically
   const seen = new Set<string>();
-  const uniqueCandidates: CandidateMinter[] = instantiateCandidates.filter(c => {
+  const uniqueCandidates: CandidateMinter[] = instantiateCandidates.filter((c) => {
     if (seen.has(c.address)) return false;
     seen.add(c.address);
     return true;
   });
 
-  // 4️⃣ If wasm anchor was found, use it as the minter (most reliable source)
-  if (cw721) {
-    return { cw721: cw721, minter: minter };
-  }
-
-  // 5️⃣ Fallback to instantiate candidates
-  if (uniqueCandidates.length === 0) {
-    throw new Error("No instantiate candidate different from CW721 (minter) found.");
-  }
-
-  if (uniqueCandidates.length === 1) {
-    return { cw721: uniqueCandidates[0].address, minter: minter  };
-  }
-
-  // 6️⃣ Final fallback: pick the first in chronological order
   const fallback = uniqueCandidates
-      .sort((a, b) => (a.evIdx - b.evIdx) || (a.attrIdx - b.attrIdx))[0];
+    .sort((a, b) => (a.evIdx - b.evIdx) || (a.attrIdx - b.attrIdx))[0];
 
-  if (fallback) return { cw721: fallback.address , minter:minter  };
+  if (!fallback) {
+    throw new Error("Minter address not found in wasm anchor or instantiate events.");
+  }
 
-  throw new Error(
-      "Ambiguity when resolving minter without anchor; multiple instantiate candidates found."
-  );
+  return { cw721, minter: fallback.address };
 }

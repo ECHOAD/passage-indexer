@@ -2,7 +2,7 @@ import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import { getNftBids, getNftActiveListings, getNftSales } from "@src/services/nft.service";
 import { OpenAPI_ExampleCollection } from "@src/utils/constants";
 import { round } from "@src/utils/math";
-import { db, and, eq, nft as nftTable, block as blockTable, day as dayTable } from "database";
+import { db, and, eq, or, nft as nftTable, block as blockTable, day as dayTable } from "database";
 
 const route = createRoute({
   method: "get",
@@ -14,7 +14,7 @@ const route = createRoute({
         description: "Collection Address",
         example: OpenAPI_ExampleCollection
       }),
-      tokenId: z.string().openapi({ description: "Token ID", example: "301", type: "number" })
+      tokenId: z.string().openapi({ description: "Token ID", example: "0001" })
     })
   },
   responses: {
@@ -71,7 +71,8 @@ const route = createRoute({
 
 export default new OpenAPIHono().openapi(route, async (c) => {
   const collectionAddress = c.req.valid("param").address;
-  const tokenId = parseInt(c.req.valid("param").tokenId);
+  const tokenId = c.req.valid("param").tokenId;
+  const normalizedTokenId = /^\d+$/.test(tokenId) ? Number.parseInt(tokenId, 10) : NaN;
 
   const collection = await db.query.collection.findFirst({
     where: (table) => eq(table.address, collectionAddress)
@@ -86,7 +87,14 @@ export default new OpenAPIHono().openapi(route, async (c) => {
     .from(nftTable)
     .leftJoin(blockTable, eq(nftTable.mintedOnBlockHeight, blockTable.height))
     .leftJoin(dayTable, eq(blockTable.dayId, dayTable.id))
-    .where(and(eq(nftTable.collection, collectionAddress), eq(nftTable.tokenId, tokenId)));
+    .where(
+      and(
+        eq(nftTable.collection, collectionAddress),
+        Number.isNaN(normalizedTokenId)
+          ? eq(nftTable.rawTokenId, tokenId)
+          : or(eq(nftTable.rawTokenId, tokenId), eq(nftTable.tokenId, normalizedTokenId))
+      )
+    );
 
   if (!result) {
     return c.text("NFT not found", 404);
@@ -119,7 +127,7 @@ export default new OpenAPIHono().openapi(route, async (c) => {
     : salesEntries;
 
   return c.json({
-    tokenId: nft.tokenId,
+    tokenId: nft.rawTokenId ?? nft.tokenId.toString(),
     owner: nft.owner,
     metadata: nft.metadata,
     createdOnBlockHeight: nft.createdOnBlockHeight,

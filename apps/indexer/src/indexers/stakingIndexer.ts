@@ -11,6 +11,7 @@ import {
   and,
   eq,
   isNull,
+  isNotNull,
   stakeVault,
   stakeRewardAccount,
   stakedNft,
@@ -24,7 +25,7 @@ import {
   nft,
   sql,
 } from "database";
-import { getEventAttributeValue } from "@src/shared/utils/nftUtils";
+import { getEventAttributeValue, parseTokenId } from "@src/shared/utils/nftUtils";
 import { ensureDenom } from "@src/shared/utils/denom";
 import {
   VaultFactoryCreateVaultSchema,
@@ -127,6 +128,45 @@ function getContractAddressForMsgIndex(
 function getStakingEvents(events: TransactionEventWithAttributes[], eventType: string): TransactionEventWithAttributes[] {
   const candidates = getStakingEventTypeCandidates(eventType);
   return events.filter((e) => candidates.includes(e.type));
+}
+
+function extractTransferAmountToRecipient(
+  events: TransactionEventWithAttributes[],
+  recipient: string,
+  expectedContractAddress?: string
+): string | null {
+  for (const event of events) {
+    if (event.type !== "transfer" && event.type !== "wasm-transfer" && event.type !== "wasm") continue;
+
+    const action = event.attributes.find((attr) => attr.key === "action")?.value;
+    if (event.type === "wasm" && action && action !== "transfer") continue;
+
+    const contractAddress =
+      event.attributes.find((attr) => attr.key === "_contract_address")?.value ||
+      event.attributes.find((attr) => attr.key === "contract_address")?.value ||
+      null;
+
+    if (expectedContractAddress && contractAddress && contractAddress !== expectedContractAddress) continue;
+
+    const eventRecipient =
+      event.attributes.find((attr) => attr.key === "recipient")?.value ||
+      event.attributes.find((attr) => attr.key === "receiver")?.value ||
+      event.attributes.find((attr) => attr.key === "to")?.value ||
+      null;
+    if (eventRecipient !== recipient) continue;
+
+    const amountRaw = event.attributes.find((attr) => attr.key === "amount")?.value;
+    if (!amountRaw) continue;
+
+    if (/^\d+$/.test(amountRaw)) return amountRaw;
+
+    const match = amountRaw.match(/^(\d+)([a-zA-Z/][\w/.-]*)$/);
+    if (match && (!expectedContractAddress || match[2] === expectedContractAddress)) {
+      return match[1];
+    }
+  }
+
+  return null;
 }
 
 export class StakingIndexer extends Indexer {
@@ -425,14 +465,14 @@ export class StakingIndexer extends Indexer {
       // Ejecuciones del vault
       const handlers: ZodHandler<any>[] = [
         createZodHandler(NftVaultStakeSchema, (stakeTx) =>
-          this.handleStake(decodedMessage, height, dbTransaction, txEvents, stakeTx.stake)
+          this.handleStake(decodedMessage, height, dbTransaction, txEvents, stakeTx.stake, msg.txId)
         ),
         createZodHandler(NftVaultUnstakeSchema, (unstakeTx) =>
-          this.handleUnstake(decodedMessage, height, dbTransaction, txEvents, unstakeTx.unstake)
+          this.handleUnstake(decodedMessage, height, dbTransaction, txEvents, unstakeTx.unstake, msg.txId)
         ),
-        createZodHandler(NftVaultClaimSchema, () => this.handleClaim(decodedMessage, height, dbTransaction, txEvents)),
+        createZodHandler(NftVaultClaimSchema, () => this.handleClaim(decodedMessage, height, dbTransaction, txEvents, msg.txId)),
         createZodHandler(NftVaultClaimRewardsSchema, () =>
-          this.handleClaimRewards(decodedMessage, height, dbTransaction, txEvents)
+          this.handleClaimRewards(decodedMessage, height, dbTransaction, txEvents, msg.txId)
         ),
         createZodHandler(NftVaultCreateRewardAccountSchema, (createRewardTx) =>
           this.handleCreateRewardAccount(
@@ -440,7 +480,8 @@ export class StakingIndexer extends Indexer {
             height,
             dbTransaction,
             txEvents,
-            createRewardTx.create_reward_account
+            createRewardTx.create_reward_account,
+            msg.txId
           )
         ),
       ];
@@ -584,9 +625,19 @@ export class StakingIndexer extends Indexer {
 
     await ensureDenom(dbTransaction, rewardAssetDenom);
 
-    // Obtener fondos iniciales
     const funds = decodedMessage.funds?.[0];
-    const totalFunds = funds ? funds.amount : "0";
+    let totalFunds = funds ? funds.amount : "0";
+
+    if (!funds && rewardAssetType === "cw20") {
+      const transferredAmount = extractTransferAmountToRecipient(
+        txEvents,
+        rewardAccountAddress,
+        rewardAssetDenom
+      );
+      if (transferredAmount) {
+        totalFunds = transferredAmount;
+      }
+    }
 
     const rewardAccountData: StakeRewardAccountInsert = {
       address: rewardAccountAddress,
@@ -669,7 +720,8 @@ export class StakingIndexer extends Indexer {
     height: number,
     dbTransaction: DbTransaction,
     txEvents: TransactionEventWithAttributes[],
-    stakeMsg: any
+    stakeMsg: any,
+    txId?: string
   ) {
     const vaultAddress = decodedMessage.contract;
     const stakerAddress = decodedMessage.sender;
@@ -691,11 +743,14 @@ export class StakingIndexer extends Indexer {
     for (const nft of nfts) {
       const collectionAddress = nft.collection;
       const tokenId = nft.token_id;
+      const normalizedTokenId = parseTokenId(tokenId);
 
       // Buscar el NFT en la base de datos
-      const dbNft = await dbTransaction.query.nft.findFirst({
-        where: (nft, { and, eq }) => and(eq(nft.collection, collectionAddress), eq(nft.tokenId, parseInt(tokenId) || 0)),
-      });
+      const dbNft = Number.isNaN(normalizedTokenId)
+        ? null
+        : await dbTransaction.query.nft.findFirst({
+            where: (nft, { and, eq }) => and(eq(nft.collection, collectionAddress), eq(nft.tokenId, normalizedTokenId)),
+          });
 
       const stakedNftData: StakedNftInsert = {
         vaultAddress,
@@ -717,9 +772,11 @@ export class StakingIndexer extends Indexer {
     );
 
     // Insertar evento
-    const transaction = await dbTransaction.query.transaction.findFirst({
-      where: (tx, { eq }) => eq(tx.height, height),
-    });
+    const transaction = txId
+      ? await dbTransaction.query.transaction.findFirst({
+          where: (tx, { eq }) => eq(tx.id, txId),
+        })
+      : null;
 
     const eventData: StakingEventInsert = {
       vaultAddress,
@@ -745,7 +802,8 @@ export class StakingIndexer extends Indexer {
     height: number,
     dbTransaction: DbTransaction,
     txEvents: TransactionEventWithAttributes[],
-    unstakeMsg: any
+    unstakeMsg: any,
+    txId?: string
   ) {
     const vaultAddress = decodedMessage.contract;
     const stakerAddress = decodedMessage.sender;
@@ -797,9 +855,11 @@ export class StakingIndexer extends Indexer {
     );
 
     // Insertar evento
-    const transaction = await dbTransaction.query.transaction.findFirst({
-      where: (tx, { eq }) => eq(tx.height, height),
-    });
+    const transaction = txId
+      ? await dbTransaction.query.transaction.findFirst({
+          where: (tx, { eq }) => eq(tx.id, txId),
+        })
+      : null;
 
     const eventData: StakingEventInsert = {
       vaultAddress,
@@ -824,7 +884,8 @@ export class StakingIndexer extends Indexer {
     decodedMessage: MsgExecuteContract,
     height: number,
     dbTransaction: DbTransaction,
-    txEvents: TransactionEventWithAttributes[]
+    txEvents: TransactionEventWithAttributes[],
+    txId?: string
   ) {
     const vaultAddress = decodedMessage.contract;
     const userAddress = decodedMessage.sender;
@@ -863,15 +924,19 @@ export class StakingIndexer extends Indexer {
             eq(stakedNft.vaultAddress, vaultAddress),
             eq(stakedNft.collectionAddress, nft.collection),
             eq(stakedNft.tokenId, nft.tokenId),
-            eq(stakedNft.stakerAddress, userAddress)
+            eq(stakedNft.stakerAddress, userAddress),
+            isNotNull(stakedNft.unstakedAtHeight),
+            eq(stakedNft.isClaimed, false)
           )
         );
     }
 
     // Insertar evento
-    const transaction = await dbTransaction.query.transaction.findFirst({
-      where: (tx, { eq }) => eq(tx.height, height),
-    });
+    const transaction = txId
+      ? await dbTransaction.query.transaction.findFirst({
+          where: (tx, { eq }) => eq(tx.id, txId),
+        })
+      : null;
 
     const eventData: StakingEventInsert = {
       vaultAddress,
@@ -893,7 +958,8 @@ export class StakingIndexer extends Indexer {
     height: number,
     dbTransaction: DbTransaction,
     txEvents: TransactionEventWithAttributes[],
-    createRewardAccountMsg: any
+    createRewardAccountMsg: any,
+    txId?: string
   ) {
     const vaultAddress = decodedMessage.contract;
     const rewardAccountAddress = getStakingEventAttribute(txEvents, "create-reward-account", "address");
@@ -914,9 +980,16 @@ export class StakingIndexer extends Indexer {
     const durationSec = parseInt(createRewardAccountMsg.duration_sec);
     const periodEnd = new Date(periodStart.getTime() + durationSec * 1000);
 
-    // Obtener fondos iniciales
+    // Obtener fondos iniciales.
     const funds = decodedMessage.funds?.[0];
-    const totalFunds = funds ? funds.amount : "0";
+    let totalFunds = funds ? funds.amount : "0";
+
+    if (!funds && assetType === "cw20") {
+      const transferredAmount = extractTransferAmountToRecipient(txEvents, rewardAccountAddress, assetDenom);
+      if (transferredAmount) {
+        totalFunds = transferredAmount;
+      }
+    }
 
     // Verificar si ya existe
     const existing = await dbTransaction.query.stakeRewardAccount.findFirst({
@@ -940,9 +1013,11 @@ export class StakingIndexer extends Indexer {
     this.knownRewardAccountAddresses.set(rewardAccountAddress, vaultAddress);
 
     // Insertar evento
-    const transaction = await dbTransaction.query.transaction.findFirst({
-      where: (tx, { eq }) => eq(tx.height, height),
-    });
+    const transaction = txId
+      ? await dbTransaction.query.transaction.findFirst({
+          where: (tx, { eq }) => eq(tx.id, txId),
+        })
+      : null;
 
     const eventData: StakingEventInsert = {
       vaultAddress,
@@ -963,7 +1038,8 @@ export class StakingIndexer extends Indexer {
     decodedMessage: MsgExecuteContract,
     height: number,
     dbTransaction: DbTransaction,
-    txEvents: TransactionEventWithAttributes[]
+    txEvents: TransactionEventWithAttributes[],
+    txId?: string
   ) {
     const vaultAddress = decodedMessage.contract;
     const userAddress = decodedMessage.sender;
@@ -990,6 +1066,12 @@ export class StakingIndexer extends Indexer {
         e.type === "coin_spent" ||
         e.type === "wasm"
     );
+
+    const transaction = txId
+      ? await dbTransaction.query.transaction.findFirst({
+          where: (tx, { eq }) => eq(tx.id, txId),
+        })
+      : null;
 
     for (const updateUserRewardsEvent of updateUserRewardsEvents) {
       const msgIndex = updateUserRewardsEvent.msgIndex ?? null;
@@ -1088,10 +1170,6 @@ export class StakingIndexer extends Indexer {
       });
 
       if (!rewardAccount) continue;
-
-      const transaction = await dbTransaction.query.transaction.findFirst({
-        where: (tx, { eq }) => eq(tx.height, height),
-      });
 
       await ensureDenom(dbTransaction, rewardDenom || rewardAccount.rewardAssetDenom);
 

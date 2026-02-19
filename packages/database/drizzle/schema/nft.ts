@@ -22,6 +22,7 @@ export const nft = pgTable(
   {
     id: uuid("id").defaultRandom().primaryKey().notNull(),
     tokenId: integer("token_id").notNull(),
+    rawTokenId: varchar("raw_token_id", { length: 255 }).notNull(),
     owner: varchar("owner", { length: 255 }),
     image: varchar("image", { length: 255 }),
     name: varchar("name", { length: 255 }),
@@ -75,6 +76,10 @@ export const nft = pgTable(
       collectionTokenId: uniqueIndex("nft_collection_token_id").on(
         table.collection,
         table.tokenId
+      ),
+      collectionRawTokenId: uniqueIndex("nft_collection_raw_token_id").on(
+        table.collection,
+        table.rawTokenId
       ),
       mintedOnBlockHeight: index("nft_minted_on_block_height").on(
         table.mintedOnBlockHeight

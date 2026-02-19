@@ -44,7 +44,7 @@ const route = createRoute({
           schema: z.object({
             nfts: z.array(
                 z.object({
-                  tokenId: z.number(),
+                  tokenId: z.string(),
                   owner: z.string(),
                   collection: z.object({
                     address: z.string(),
@@ -91,14 +91,8 @@ export default new OpenAPIHono().openapi(route, async (c) => {
     maxPrice: maxPrice ?? undefined
   });
 
-
-  const nftsOut = nfts.map(n => ({
-    ...n,
-    tokenId: typeof n.tokenId === "string" ? parseInt(n.tokenId, 10) : n.tokenId
-  }));
-
   return c.json({
-    nfts: nftsOut,
+    nfts,
     pagination: {
       total: totalCount
     }

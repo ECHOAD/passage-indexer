@@ -19,6 +19,8 @@ import {
   max,
   message,
   transaction as transactionTable,
+  transactionEvent as transactionEventTable,
+  transactionEventAttribute as transactionEventAttributeTable,
   inArray,
   asc,
   DbTransaction,
@@ -85,8 +87,11 @@ class StatsProcessor {
                 where: and(eq(message.isProcessed, false), inArray(message.type, indexersMsgTypes))
               },
               events: {
+                orderBy: [asc(transactionEventTable.msgIndex), asc(transactionEventTable.index)],
                 with: {
-                  attributes: true
+                  attributes: {
+                    orderBy: asc(transactionEventAttributeTable.index)
+                  }
                 }
               }
             }

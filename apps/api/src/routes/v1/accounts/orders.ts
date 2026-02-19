@@ -25,7 +25,7 @@ const route = createRoute({
           schema: z.array(
             z.object({
               nft: z.object({
-                tokenId: z.number(),
+                tokenId: z.string(),
                 owner: z.string(),
                 metadata: z.unknown({ description: "JSON Metadata" }),
                 createdOnBlockHeight: z.number(),
