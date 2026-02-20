@@ -14,5 +14,6 @@ export const env = {
   ActiveChain: process.env.ActiveChain,
   KeepCache: process.env.KeepCache === "true",
   Standby: process.env.Standby === "true",
-  DataFolder: process.env.DataFolder ?? "./data"
+  DataFolder: process.env.DataFolder ?? "./data",
+  RpcNodes: process.env.RpcNodes
 };

@@ -34,9 +34,9 @@ export interface ChainDef {
 
 export const activeChain: ChainDef = {
   code: "passage",
-  rpcNodes: [
-    "http://199.189.85.66:26695"
-  ],
+  rpcNodes: env.RpcNodes
+    ? env.RpcNodes.split(",").map((n) => n.trim()).filter(Boolean)
+    : ["http://199.189.85.66:26695"],
   cosmosDirectoryId: "passage",
   connectionString: process.env.PassageDatabaseCS,
   genesisFileUrl: "https://raw.githubusercontent.com/nodefleet/testnet-fleet/refs/heads/main/alphafleet-1/genesis.json",

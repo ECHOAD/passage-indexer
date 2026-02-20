@@ -1,0 +1,40 @@
+# ============================================================
+# Passage Local Dev Node - Dockerfile
+#
+# Build context: workspace root (../ relative to indexer/)
+# i.e.: docker compose build sets context to workspace root
+# so COPY Passage3D/ and COPY indexer/local/ both resolve.
+# ============================================================
+
+# --- Build stage: compile passage binary (static, muslc) ---
+FROM golang:1.20.5-alpine AS build-env
+
+ENV PACKAGES="bash curl make git libc-dev gcc linux-headers eudev-dev python3"
+
+WORKDIR /code
+COPY Passage3D/ .
+
+RUN WASMVM_VERSION=$(go list -m github.com/CosmWasm/wasmvm | sed 's/.* //') && \
+    wget https://github.com/CosmWasm/wasmvm/releases/download/$WASMVM_VERSION/libwasmvm_muslc.x86_64.a \
+        -O /lib/libwasmvm_muslc.a
+
+RUN apk add --no-cache $PACKAGES && \
+    BUILD_TAGS=muslc LINK_STATICALLY=true make install && \
+    rm -rf /var/cache/apk/*
+
+# --- Runtime stage: minimal Alpine with shell tools ---
+FROM alpine:edge
+
+RUN apk add --update ca-certificates bash sed jq curl
+
+WORKDIR /root
+
+COPY --from=build-env /go/bin/passage /usr/local/bin/passage
+COPY indexer/local/init-passage.sh /usr/local/bin/init-passage.sh
+# Strip Windows CRLF line endings (\r\n -> \n) so the shebang resolves correctly
+RUN sed -i 's/\r$//' /usr/local/bin/init-passage.sh && \
+    chmod +x /usr/local/bin/init-passage.sh
+
+EXPOSE 26656 26657 1317 9090
+
+ENTRYPOINT ["/usr/local/bin/init-passage.sh"]

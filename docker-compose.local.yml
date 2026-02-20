@@ -1,0 +1,121 @@
+# ============================================================
+#  Passage - Local Development Stack
+#  ============================================================
+#
+#  Services:
+#    passage-node  -> single-node local blockchain (chain: localpassage-1)
+#    postgres      -> PostgreSQL 17 for the indexer
+#    indexer       -> passage indexer pointing at local node
+#
+#  Usage (run from inside indexer/ directory):
+#
+#    Start stack:
+#      docker compose -f docker-compose.local.yml up -d
+#
+#    View node logs (seed phrase visible here on startup):
+#      docker compose -f docker-compose.local.yml logs -f passage-node
+#
+#    View indexer logs:
+#      docker compose -f docker-compose.local.yml logs -f indexer
+#
+#    Stop (keeps all data):
+#      docker compose -f docker-compose.local.yml down
+#
+#    Full reset - wipe blockchain + DB, reindex from block 0:
+#      docker compose -f docker-compose.local.yml down -v
+#      docker compose -f docker-compose.local.yml up -d
+#
+#    Restart only the blockchain (keeps DB / indexer progress):
+#      docker compose -f docker-compose.local.yml restart passage-node
+#
+#  Access:
+#    RPC      -> http://localhost:26657
+#    REST API -> http://localhost:1317
+#    gRPC     -> localhost:9090
+#    DB       -> localhost:5433
+#               user: indexer-passage / pass: TheSecretOne_ / db: passage
+# ============================================================
+
+services:
+
+  # ── Local Passage blockchain node ───────────────────────────
+  passage-node:
+    container_name: passage-local-node
+    build:
+      # Context is workspace root so the Dockerfile can access
+      # both Passage3D/ (chain source) and indexer/local/ (init script)
+      context: ..
+      dockerfile: indexer/local/Dockerfile.passage-node
+    ports:
+      - "26656:26656"   # P2P
+      - "26657:26657"   # RPC
+      - "1317:1317"     # REST API
+      - "9090:9090"     # gRPC
+    volumes:
+      - passage-data:/root/.passage
+    networks:
+      - local-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:26657/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+    restart: unless-stopped
+
+  # ── PostgreSQL ───────────────────────────────────────────────
+  postgres:
+    image: postgres:17
+    container_name: passage-local-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: indexer-passage
+      POSTGRES_PASSWORD: TheSecretOne_
+      POSTGRES_DB: passage
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - local-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U indexer-passage -d passage"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── Indexer ──────────────────────────────────────────────────
+  indexer:
+    container_name: passage-local-indexer
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.node
+      target: production
+      args:
+        WORKSPACE: indexer
+    restart: unless-stopped
+    env_file: ./local/.env.indexer.local
+    depends_on:
+      postgres:
+        condition: service_healthy
+      passage-node:
+        condition: service_healthy
+    networks:
+      - local-net
+    volumes:
+      - indexer-data:/home/data
+
+# ── Volumes ──────────────────────────────────────────────────
+volumes:
+  passage-data:
+    name: passage-local-chain-data
+  postgres-data:
+    name: passage-local-postgres-data
+  indexer-data:
+    name: passage-local-indexer-data
+
+# ── Networks ─────────────────────────────────────────────────
+networks:
+  local-net:
+    driver: bridge
+    name: passage-local-net
