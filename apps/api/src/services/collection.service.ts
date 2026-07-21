@@ -97,7 +97,7 @@ export async function getCollections(filter: GetCollectionsParams) {
             COUNT(*) -
         (
           COUNT(*) FILTER (WHERE ${nft.mintedOnBlockHeight} IS NOT NULL) +
-            COUNT(*) FILTER (WHERE ${nft.migratedOnBlockHeight} IS NOT NULL)
+            COUNT(*) FILTER (WHERE ${nft.migratedOnBlockHeight} IS NOT NULL AND ${nft.mintedOnBlockHeight} IS NULL)
             )
         `.as("availableToMintCount"),
         uniqueOwnerCount: countDistinct(nft.owner).as("uniqueOwnerCount"),
@@ -118,7 +118,9 @@ export async function getCollections(filter: GetCollectionsParams) {
       .innerJoin(collection, eq(nft.collection, collection.address))
       .where(and(
           isNull(nftListing.unlistedBlockHeight),
-          gte(nftListing.forSalePrice, collection.minPrice)
+          // A null minPrice must not exclude every listing (gte(x, NULL) is NULL/false).
+          // Keep this filter identical across listAgg / getFloorPrice / getListedTokenCount.
+          or(isNull(collection.minPrice), gte(nftListing.forSalePrice, collection.minPrice))
       ))
       .groupBy(nft.collection)
       .as("listAgg");
@@ -295,7 +297,7 @@ export async function getFloorPrice(collectionAddress: string) {
       .where(and(
           isNull(nftListing.unlistedBlockHeight),
           eq(nft.collection, collectionAddress),
-          gte(nftListing.forSalePrice, collection.minPrice)
+          or(isNull(collection.minPrice), gte(nftListing.forSalePrice, collection.minPrice))
       ));
   return floorPrice;
 }
@@ -336,7 +338,13 @@ async function getListedTokenCount(collectionAddress: string) {
       .select({ listedTokenCount: countDistinct(nftListing.nft) })
       .from(nftListing)
       .innerJoin(nft, eq(nftListing.nft, nft.id))
-      .where(and(isNull(nftListing.unlistedBlockHeight), eq(nft.collection, collectionAddress)));
+      .innerJoin(collection, eq(nft.collection, collection.address))
+      .where(and(
+          isNull(nftListing.unlistedBlockHeight),
+          eq(nft.collection, collectionAddress),
+          // Match listAgg / getFloorPrice so grid and detail report the same listed count.
+          or(isNull(collection.minPrice), gte(nftListing.forSalePrice, collection.minPrice))
+      ));
   return listedTokenCount;
 }
 

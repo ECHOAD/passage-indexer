@@ -95,7 +95,8 @@ const recentSalesRoute = createRoute({
                     metadata: z.unknown({ description: "JSON Metadata" })
                   })
                 })
-            )
+            ),
+            pagination: z.object({ total: z.number() })
           })
         }
       }

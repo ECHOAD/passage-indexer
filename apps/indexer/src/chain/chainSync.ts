@@ -200,7 +200,14 @@ type LogEntry = {
 function normalizeLogs(raw: unknown): LogEntry[] {
   let entries: LogEntry[] = [];
   if (Array.isArray(raw)) entries = raw as LogEntry[];
-  else if (typeof raw === "string") { try { entries = JSON.parse(raw); } catch {} }
+  else if (typeof raw === "string") {
+    const trimmed = raw.trim();
+    // Empty log is legitimate (e.g. bank sends emit no message log) -> no events.
+    // A non-empty but unparseable log must NOT be swallowed: returning [] here gives every
+    // message in the tx zero events, which downstream surfaces as opaque "not found" errors
+    // and an endlessly-retried block-group rollback. Let it throw so the caller can log context.
+    if (trimmed !== "") entries = JSON.parse(trimmed);
+  }
 
   return entries.map((e, i) => ({ msg_index: e.msg_index ?? i, events: e.events ?? [] }));
 }
@@ -247,7 +254,15 @@ async function insertBlocks(startHeight: number, endHeight: number) {
       const msgs = decodedTx.body.messages;
 
       const txJson = blockResults.txs_results[txIndex];
-      const logsByMsg = !txJson.code ? normalizeLogs(txJson.log) : [];
+      let logsByMsg: LogEntry[] = [];
+      if (!txJson.code) {
+        try {
+          logsByMsg = normalizeLogs(txJson.log);
+        } catch (e) {
+          console.error(`Failed to parse tx log at height ${i}, tx ${hash}:`, e);
+          throw e;
+        }
+      }
       const eventsByMsg = new Map<number, LogEntry["events"]>();
 
       for (const log of logsByMsg) {

@@ -101,7 +101,7 @@ export default new OpenAPIHono().openapi(route, async (c) => {
         total: count(nft.id).as("total")
       })
       .from(nft)
-      .where(eq(nft.owner, accountAddress));
+      .where(and(eq(nft.owner, accountAddress), notInArray(nft.collection, IGNORED_COLLECTIONS)));
 
   return c.json(
       {

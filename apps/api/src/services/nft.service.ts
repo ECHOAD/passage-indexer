@@ -223,7 +223,8 @@ export async function getRecentNftSales({
   return {
     items,
     pagination: {
-      total: Math.ceil(totalCount / limit),
+      // Total item count, consistent with every other endpoint's pagination.total.
+      total: totalCount,
     },
   };
 }
