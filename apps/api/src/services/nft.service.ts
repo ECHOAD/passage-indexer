@@ -404,7 +404,8 @@ export async function getNftsWithStats(args: GetNftsArgs) {
 
   const sortMapping: Record<string, any> = {
     priceAsc: asc(nftsStats.forSalePrice),
-    priceDesc: desc(nftsStats.forSalePrice),
+    // DESC in Postgres is NULLS FIRST; force listed-first so unlisted (null price) sink to the bottom.
+    priceDesc: sql`${nftsStats.forSalePrice} DESC NULLS LAST`,
     tokenIdAsc: tokenNumAsc,
     tokenIdDesc: tokenNumDesc,
     tokenIdAlphaAsc: tokenAlphaAsc,
@@ -412,9 +413,9 @@ export async function getNftsWithStats(args: GetNftsArgs) {
     totalSalesDesc: desc(nftsStats.totalSales),
     salesInPeriodDesc: desc(nftsStats.salesInPeriod),
     salesChangePctDesc: desc(nftsStats.salesChangePct),
-    lastSoldDesc: desc(nftsStats.lastSaleBlockHeight),
+    lastSoldDesc: sql`${nftsStats.lastSaleBlockHeight} DESC NULLS LAST`,
     lastSoldAsc: asc(nftsStats.lastSaleBlockHeight),
-    volumeDesc: desc(nftsStats.totalVolume),
+    volumeDesc: sql`${nftsStats.totalVolume} DESC NULLS LAST`,
     volumeAsc: asc(nftsStats.totalVolume),
   };
 

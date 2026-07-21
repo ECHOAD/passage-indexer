@@ -207,16 +207,18 @@ export async function getCollections(filter: GetCollectionsParams) {
 
   const skip = filter.skip ?? 0;
   const limit = filter.limit ?? 20;
-
-  const paginated = await filteredQuery
-      .orderBy(asc(sub.createdHeight), asc(sub.address))
-      .offset(skip)
-      .limit(limit);
-
   const period = filter.period ?? "7d";
 
+  // ponytail: map + sort the FULL filtered set, then paginate in memory. The stat-based sort
+  // keys (volume/sales) are computed per-collection below, so paginating in SQL first (as the
+  // prior code did) sorted only the current page and returned the wrong collections for any
+  // non-default sort. Fine at Passage's dozens-of-collections scale; if the collection count
+  // ever reaches the thousands, push the sort keys into the SQL base query before offset/limit.
+  const rows = await filteredQuery
+      .orderBy(asc(sub.createdHeight), asc(sub.address));
+
   const mapped = await Promise.all(
-      paginated.map(async (col: any) => {
+      rows.map(async (col: any) => {
         const baseMapped = await mapCollection(col);
         const stats = await getSaleAndVolumeStats(col.address, period);
         return {
@@ -238,7 +240,7 @@ export async function getCollections(filter: GetCollectionsParams) {
           : mapped;
 
   return {
-    collections: sorted,
+    collections: sorted.slice(skip, skip + limit),
     total,
   };
 }
