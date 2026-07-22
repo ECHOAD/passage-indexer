@@ -92,7 +92,8 @@ export async function getAccountNfts({
     tokenIdAsc: tokenIdNumericAsc,
     tokenIdDesc: tokenIdNumericDesc,
     priceAsc: asc(nftListing.forSalePrice),
-    priceDesc: desc(nftListing.forSalePrice),
+    // DESC is NULLS FIRST in Postgres; keep unlisted holdings (null price) at the bottom.
+    priceDesc: sql`${nftListing.forSalePrice} DESC NULLS LAST`,
   };
   const sortFn = sortMapping[sort] ?? tokenIdNumericAsc;
 

@@ -86,13 +86,16 @@ export const NftMetadataSchema = z.object({
   background_color: z.string().nullable().optional(),
   animation_url: z.string().nullable().optional(),
   youtube_url: z.string().nullable().optional(),
+  // CW721 metadata in the wild routinely omits display_type and uses numeric/boolean
+  // values. Keep this tolerant so parsing succeeds and the normalizer below runs —
+  // a strict schema here silently dropped name/image/traits for whole collections.
   attributes: z.array(
     z.object({
-      display_type: z.string(),
-      trait_type: z.string(),
-      value: z.string()
+      display_type: z.string().nullish(),
+      trait_type: z.string().nullish(),
+      value: z.union([z.string(), z.number(), z.boolean()]).nullish()
     })
-  )
+  ).nullish()
 });
 
 export type NftMintTx = z.infer<typeof NftMintTxSchema>;

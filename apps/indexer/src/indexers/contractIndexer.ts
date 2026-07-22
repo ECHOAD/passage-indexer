@@ -708,22 +708,19 @@ export class ContractIndexer extends Indexer {
       throw new Error(`Nft not found for ${tokenId} in ${marketContractAddress}`);
     }
 
-    const wasRefunded = txEvents.some((e) =>
-        e.type === "wasm-refund-bidder" &&
-        getEventAttributeValue([e], "wasm-refund-bidder", "recipient") === owner
-    );
-
-    // Removed temporarily due to bug in the contract (PROBABLY). Founds keeps on the smart_contract
-    // const matchOutcome = getEventAttributeValue(txEvents, "wasm-match-bid", "outcome");
-    // const wasTooLow = matchOutcome === "bid-too-low";
-
     const wasFinalized = txEvents.some((event) => event.type === "wasm-finalize-sale");
-
-    const removedBlockHeight = wasFinalized || wasRefunded ? height : null;
 
     if (wasFinalized) {
       await this.executeNftSale(dbTransaction, txEvents, tokenId, height);
     }
+
+    // Re-bidding the same NFT refunds this bidder's prior escrowed bid on-chain, so retire
+    // their existing active bid before inserting the new one. Previously a refund event was
+    // used to flag the NEW bid removed, which left the stale bid active and hid the real one.
+    await dbTransaction
+        .update(nftBid)
+        .set({ removedBlockHeight: height })
+        .where(and(eq(nftBid.nft, dbNft.id), eq(nftBid.owner, owner), isNull(nftBid.removedBlockHeight)));
 
     await dbTransaction.insert(nftBid).values({
       owner: owner,
@@ -732,7 +729,8 @@ export class ContractIndexer extends Indexer {
       bidPrice: amount,
       bidDenom: denom,
       bidBlockHeight: height,
-      removedBlockHeight
+      // If the bid matched an ask immediately (auto-sale), it's consumed -> mark removed.
+      removedBlockHeight: wasFinalized ? height : null
     });
   }
 
@@ -857,13 +855,14 @@ export class ContractIndexer extends Indexer {
     const bidder = getEventAttributeValue(txEvents, "wasm-accept-collection-bid", "bidder");
 
     if (!collectionMarketAddress) throw "Could not find collection address in accept collection bid event";
+    if (!bidder) throw "Could not find bidder in accept collection bid event";
 
     const [{ nft_collection_bid: dbNftCollectionBid, collection: dbCollection, nft: dbNft }] = await dbTransaction
       .select()
       .from(nftCollectionBid)
       .innerJoin(collection, eq(collection.address, nftCollectionBid.collection))
       .innerJoin(nft, eq(nft.collection, collection.address))
-      .where(and(eq(nft.tokenId, tokenId), eq(collection.marketContract, collectionMarketAddress), isNull(nftCollectionBid.removedBlockHeight)));
+      .where(and(eq(nft.tokenId, tokenId), eq(collection.marketContract, collectionMarketAddress), eq(nftCollectionBid.owner, bidder), isNull(nftCollectionBid.removedBlockHeight)));
 
     if (!dbNftCollectionBid) {
       throw new Error(`Nft collection bid not found for ${tokenId} in ${collectionMarketAddress}`);
@@ -898,7 +897,7 @@ export class ContractIndexer extends Indexer {
         .where(and(eq(nftCollectionBid.id, dbNftCollectionBid.id)));
     }
 
-    this.executeNftSale(dbTransaction, txEvents, tokenId, height);
+    await this.executeNftSale(dbTransaction, txEvents, tokenId, height);
   }
 
   private async acceptBid(dbTransaction: DbTransaction, txEvents: TransactionEventWithAttributes[], tokenId: number, height: number) {
@@ -906,13 +905,14 @@ export class ContractIndexer extends Indexer {
     const bidder = getEventAttributeValue(txEvents, "wasm-accept-bid", "bidder");
 
     if (!collectionMarketAddress) throw "Could not find collection address in accept bid event";
+    if (!bidder) throw "Could not find bidder in accept bid event";
 
     const [{ nft_bid: dbNftBid, collection: dbCollection, nft: dbNft }] = await dbTransaction
       .select()
       .from(nftBid)
       .innerJoin(nft, eq(nft.id, nftBid.nft))
       .innerJoin(collection, eq(nft.collection, collection.address))
-      .where(and(eq(nft.tokenId, tokenId), eq(collection.marketContract, collectionMarketAddress), isNull(nftBid.removedBlockHeight)));
+      .where(and(eq(nft.tokenId, tokenId), eq(collection.marketContract, collectionMarketAddress), eq(nftBid.owner, bidder), isNull(nftBid.removedBlockHeight)));
 
     if (!dbNftBid) {
       throw new Error(`Nft bid not found for ${tokenId} in ${collectionMarketAddress}`);
@@ -937,7 +937,7 @@ export class ContractIndexer extends Indexer {
       })
       .where(eq(nftBid.id, dbNftBid.id));
 
-    this.executeNftSale(dbTransaction, txEvents, tokenId, height);
+    await this.executeNftSale(dbTransaction, txEvents, tokenId, height);
   }
 
   private async transferNft(
@@ -1020,6 +1020,17 @@ export class ContractIndexer extends Indexer {
     }
 
     if (!dbNft.owner) throw new Error(`No owner for ${tokenId} in ${collectionAddress}`);
+
+    // Idempotency guard. Dispatch + per-message event scoping already ensure one sale ->
+    // one executeNftSale call, but the deploy path is a full reindex from genesis where a
+    // replayed block would otherwise insert a duplicate sale row and double-count volume.
+    // An NFT cannot legitimately sell twice at the same height, so (nft, height) is a safe key.
+    const [existingSale] = await dbTransaction
+      .select({ id: nftSale.id })
+      .from(nftSale)
+      .where(and(eq(nftSale.nft, dbNft.id), eq(nftSale.saleBlockHeight, height)))
+      .limit(1);
+    if (existingSale) return;
 
     // Add the sale
     await dbTransaction.insert(nftSale).values({

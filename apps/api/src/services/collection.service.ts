@@ -97,7 +97,7 @@ export async function getCollections(filter: GetCollectionsParams) {
             COUNT(*) -
         (
           COUNT(*) FILTER (WHERE ${nft.mintedOnBlockHeight} IS NOT NULL) +
-            COUNT(*) FILTER (WHERE ${nft.migratedOnBlockHeight} IS NOT NULL)
+            COUNT(*) FILTER (WHERE ${nft.migratedOnBlockHeight} IS NOT NULL AND ${nft.mintedOnBlockHeight} IS NULL)
             )
         `.as("availableToMintCount"),
         uniqueOwnerCount: countDistinct(nft.owner).as("uniqueOwnerCount"),
@@ -118,7 +118,9 @@ export async function getCollections(filter: GetCollectionsParams) {
       .innerJoin(collection, eq(nft.collection, collection.address))
       .where(and(
           isNull(nftListing.unlistedBlockHeight),
-          gte(nftListing.forSalePrice, collection.minPrice)
+          // A null minPrice must not exclude every listing (gte(x, NULL) is NULL/false).
+          // Keep this filter identical across listAgg / getFloorPrice / getListedTokenCount.
+          or(isNull(collection.minPrice), gte(nftListing.forSalePrice, collection.minPrice))
       ))
       .groupBy(nft.collection)
       .as("listAgg");
@@ -207,16 +209,18 @@ export async function getCollections(filter: GetCollectionsParams) {
 
   const skip = filter.skip ?? 0;
   const limit = filter.limit ?? 20;
-
-  const paginated = await filteredQuery
-      .orderBy(asc(sub.createdHeight), asc(sub.address))
-      .offset(skip)
-      .limit(limit);
-
   const period = filter.period ?? "7d";
 
+  // ponytail: map + sort the FULL filtered set, then paginate in memory. The stat-based sort
+  // keys (volume/sales) are computed per-collection below, so paginating in SQL first (as the
+  // prior code did) sorted only the current page and returned the wrong collections for any
+  // non-default sort. Fine at Passage's dozens-of-collections scale; if the collection count
+  // ever reaches the thousands, push the sort keys into the SQL base query before offset/limit.
+  const rows = await filteredQuery
+      .orderBy(asc(sub.createdHeight), asc(sub.address));
+
   const mapped = await Promise.all(
-      paginated.map(async (col: any) => {
+      rows.map(async (col: any) => {
         const baseMapped = await mapCollection(col);
         const stats = await getSaleAndVolumeStats(col.address, period);
         return {
@@ -238,7 +242,7 @@ export async function getCollections(filter: GetCollectionsParams) {
           : mapped;
 
   return {
-    collections: sorted,
+    collections: sorted.slice(skip, skip + limit),
     total,
   };
 }
@@ -293,7 +297,7 @@ export async function getFloorPrice(collectionAddress: string) {
       .where(and(
           isNull(nftListing.unlistedBlockHeight),
           eq(nft.collection, collectionAddress),
-          gte(nftListing.forSalePrice, collection.minPrice)
+          or(isNull(collection.minPrice), gte(nftListing.forSalePrice, collection.minPrice))
       ));
   return floorPrice;
 }
@@ -334,7 +338,13 @@ async function getListedTokenCount(collectionAddress: string) {
       .select({ listedTokenCount: countDistinct(nftListing.nft) })
       .from(nftListing)
       .innerJoin(nft, eq(nftListing.nft, nft.id))
-      .where(and(isNull(nftListing.unlistedBlockHeight), eq(nft.collection, collectionAddress)));
+      .innerJoin(collection, eq(nft.collection, collection.address))
+      .where(and(
+          isNull(nftListing.unlistedBlockHeight),
+          eq(nft.collection, collectionAddress),
+          // Match listAgg / getFloorPrice so grid and detail report the same listed count.
+          or(isNull(collection.minPrice), gte(nftListing.forSalePrice, collection.minPrice))
+      ));
   return listedTokenCount;
 }
 
